@@ -3,12 +3,12 @@ import { WebSocket, WebSocketServer } from "ws";
 
 const app = express();
 
-const PORT = 3001;
+const PORT = process.env.PORT || 3001; // Railway will provide the PORT
 
 
-const server = app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
-})
+const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on port ${PORT}`);
+});
 
 // creating the web socket server
 const wss = new WebSocketServer({ server })
@@ -22,13 +22,13 @@ const wss = new WebSocketServer({ server })
 
 const clients = new Set<WebSocket>()
 
-wss.on("connection", (socket) => {
+wss.on("connection", (socket: WebSocket) => {
 
     console.log("client connected")
 
     clients.add(socket);
 
-    socket.on("message", (message) => {
+    socket.on("message", (message: Buffer) => {
         console.log("Received:", message.toString());
 
         for (const client of clients) {

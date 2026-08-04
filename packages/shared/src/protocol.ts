@@ -45,12 +45,31 @@ export interface SessionCreatedMessage {
 }
 
 
+export interface JoinSessionMessage {
+  type: typeof MessageType.JOIN_SESSION;
+
+  payload:{
+    code:string
+  }
+}
+
+
+export interface SessionJoinedMessage {
+  type: typeof MessageType.SESSION_JOINED;
+
+  payload: {
+    peerId: string;
+  };
+}
+
 export type ServerMessage =
   | ClientIdMessage
-  | SessionCreatedMessage;
+  | SessionCreatedMessage
+  | SessionJoinedMessage;
 
 export type ClientMessage =
-  | CreateSessionMessage;
+  | CreateSessionMessage
+  | JoinSessionMessage;
 
 export interface Session {
   host: string;

@@ -3,10 +3,10 @@ import { WebSocket, WebSocketServer } from "ws";
 import { v4 as uuidv4 } from "uuid"
 
 import {
-  MessageType,
-  type Session,
-  ClientMessage
-} from "@bridge/shared/src/protocol";
+    MessageType,
+    type Session,
+    ClientMessage
+} from "@bridge/shared";
 
 
 const app = express();
@@ -65,8 +65,51 @@ wss.on("connection", (socket: WebSocket) => {
                 );
                 console.log(`Session ${sessionCode} created by ${clientId}`);
                 break;
+            }
+
+            //  NOW XREATING A LISTNER FOR THE JOIN-SESSION MESSAGE FROM BROWSER
+            case MessageType.JOIN_SESSION: {
+
+                const code = data.payload.code;
+                const session = sessions.get(code);
+
+                if (!session) {
+                    console.log("Session not found");
+                    break;
+                }
+                if (session.guest) {
+                    console.log("Session already full");
+                    break;
+                }
+
+                // now even after that check we know session exists and guest is empty so
+                session.guest = clientId;  // setting the guest id in the session
+
+                // now we need to find the socket of host and guest
+                const hostSocket = clients.get(session.host)
+                const guestSocket = socket;
+
+                // now we notifing the host and guest that session is joined
+                hostSocket?.send(
+                    JSON.stringify({
+                        type: MessageType.SESSION_JOINED,
+                        payload: {
+                            peerId: clientId,
+                        },
+                    })
+                );
+                guestSocket.send(
+                    JSON.stringify({
+                        type: MessageType.SESSION_JOINED,
+                        payload: {
+                            peerId: session.host,
+                        },
+                    })
+                );
+                break;
 
             }
+
 
             default:
                 console.log("Unknown message:", data.type);

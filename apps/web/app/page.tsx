@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { MessageType } from "@bridge/shared/src/protocol";
+
 export default function Home() {
   const socket = useRef<WebSocket | null>(null);
 
@@ -11,19 +13,35 @@ export default function Home() {
 
   const connect = () => {
 
-      console.log("WS URL =", process.env.NEXT_PUBLIC_WS_URL);
+    // console.log("WS URL =", process.env.NEXT_PUBLIC_WS_URL);
     socket.current = new WebSocket(process.env.NEXT_PUBLIC_WS_URL!);
 
     socket.current.onopen = () => {
-      console.log("Connected");
-      console.log(socket.current?.readyState);
       setConnected(true);
     };
 
+    // when socket receive message do this
     socket.current.onmessage = (event) => {
-      setMessages((prev) => [...prev, event.data]);
+      const data = JSON.parse(event.data);
+
+      switch (data.type) {
+        case MessageType.CLIENT_ID:
+          console.log("My Client ID:", data.payload.clientId);
+          break;
+
+        case MessageType.SESSION_CREATED:
+          console.log("Session Code:", data.payload.code);
+          break;
+
+        default:
+          console.log("Unknown message:", data.type);
+      }
+
+      setMessages((prev) => [...prev, JSON.stringify(data)]);
     };
 
+
+    // when soxket closes dothis
     socket.current.onclose = () => {
       console.log("Disconnected");
       setConnected(false);
@@ -52,6 +70,16 @@ export default function Home() {
   };
 
 
+  const createSession = () => {
+    socket.current?.send(
+      JSON.stringify({
+        type: MessageType.CREATE_SESSION,
+        payload: {}
+      })
+    )
+  }
+
+
   return (
     <main style={{ padding: 40 }}>
       <h1>Bridge v0</h1>
@@ -59,6 +87,9 @@ export default function Home() {
       <button onClick={connect} disabled={connected}>
         {connected ? "Connected" : "Connect"}
       </button>
+
+      <button onClick={createSession}>Create session</button>
+
 
       <br />
       <br />

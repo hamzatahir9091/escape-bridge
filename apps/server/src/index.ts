@@ -53,7 +53,7 @@ wss.on("connection", (socket: WebSocket) => {
             case MessageType.CREATE_SESSION: {
                 const sessionCode = generateSessionCode()
 
-                sessions.set(sessionCode, { host: clientId, guest: "" })
+                sessions.set(sessionCode, { host: clientId, })
 
                 socket.send(
                     JSON.stringify({
@@ -110,9 +110,6 @@ wss.on("connection", (socket: WebSocket) => {
 
             }
 
-
-            default:
-                console.log("Unknown message:", data.type);
         }
     })
 

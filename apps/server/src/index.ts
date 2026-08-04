@@ -3,7 +3,7 @@ import { WebSocket, WebSocketServer } from "ws";
 
 const app = express();
 
-const PORT = process.env.PORT || 3001; // Railway will provide the PORT
+const PORT = Number(process.env.PORT) || 3001; // Railway will provide the PORT
 
 
 const server = app.listen(PORT, '0.0.0.0', () => {

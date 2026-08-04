@@ -10,14 +10,14 @@ export default function Home() {
   const [messages, setMessages] = useState<string[]>([]);
 
   const connect = () => {
+
+      console.log("WS URL =", process.env.NEXT_PUBLIC_WS_URL);
     socket.current = new WebSocket(process.env.NEXT_PUBLIC_WS_URL!);
 
     socket.current.onopen = () => {
       console.log("Connected");
       console.log(socket.current?.readyState);
       setConnected(true);
-
-      console.log(process.env.NEXT_PUBLIC_WS_URL);
     };
 
     socket.current.onmessage = (event) => {

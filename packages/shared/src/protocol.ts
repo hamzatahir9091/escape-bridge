@@ -17,6 +17,9 @@ export const MessageType = {
   SESSION_CREATED: "SESSION_CREATED",
   JOIN_SESSION: "JOIN_SESSION",
   SESSION_JOINED: "SESSION_JOINED",
+  OFFER: "OFFER",
+  ANSWER: "ANSWER",
+  ICE_CANDIDATE: "ICE_CANDIDATE",
 } as const;
 
 export type MessageType = typeof MessageType[keyof typeof MessageType];
@@ -48,8 +51,8 @@ export interface SessionCreatedMessage {
 export interface JoinSessionMessage {
   type: typeof MessageType.JOIN_SESSION;
 
-  payload:{
-    code:string
+  payload: {
+    code: string
   }
 }
 
@@ -59,20 +62,54 @@ export interface SessionJoinedMessage {
 
   payload: {
     peerId: string;
+    role: "HOST" | "GUEST"
+  };
+}
+
+export interface OfferMessage {
+  type: typeof MessageType.OFFER;
+
+  payload: {
+    targetId: string;
+    offer: RTCSessionDescriptionInit;
+  };
+}
+
+export interface AnswerMessage {
+  type: typeof MessageType.ANSWER;
+
+  payload: {
+    targetId: string;
+    answer: RTCSessionDescriptionInit;
+  };
+}
+
+
+export interface IceCandidateMessage {
+  type: typeof MessageType.ICE_CANDIDATE;
+
+  payload: {
+    targetId: string;
+    candidate: RTCIceCandidateInit;
   };
 }
 
 export type ServerMessage =
   | ClientIdMessage
   | SessionCreatedMessage
+  | OfferMessage
+  | AnswerMessage
+  | IceCandidateMessage
   | SessionJoinedMessage;
 
 export type ClientMessage =
   | CreateSessionMessage
-  | JoinSessionMessage;
+  | JoinSessionMessage
+  | OfferMessage
+  | IceCandidateMessage
+  | AnswerMessage;
 
 export interface Session {
   host: string;
-
   guest?: string;
 }

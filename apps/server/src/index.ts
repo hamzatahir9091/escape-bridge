@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from "uuid"
 import { MessageType, ClientMessage } from "@bridge/shared";
 import { clients, sessions } from "./store/state";
 import { handleCreateSession, handleJoinSession } from "./handlers/session";
+import { handleAnswer, handleIceCandidate, handleOffer } from "./handlers/webrtc";
 
 const app = express();
 
@@ -41,7 +42,8 @@ wss.on("connection", (socket: WebSocket) => {
     }))
 
 
-    // now creating a incoming message handler 
+    // now creating a incoming message handler -----------------
+
     socket.on("message", (message) => {
         const data = JSON.parse(message.toString()) as ClientMessage;
 
@@ -54,6 +56,21 @@ wss.on("connection", (socket: WebSocket) => {
             //  NOW XREATING A LISTNER FOR THE JOIN-SESSION MESSAGE FROM BROWSER
             case MessageType.JOIN_SESSION: {
                 handleJoinSession(socket, clientId, data);
+                break;
+            }
+
+            case MessageType.OFFER: {
+                handleOffer(data)
+                break;
+            }
+
+            case MessageType.ANSWER: {
+                handleAnswer(data)
+                break;
+            }
+
+            case MessageType.ICE_CANDIDATE : {
+                handleIceCandidate(data);
                 break;
             }
         }

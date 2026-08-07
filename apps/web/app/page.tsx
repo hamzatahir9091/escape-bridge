@@ -4,8 +4,15 @@ import { useEffect, useRef, useState } from "react";
 
 import { MessageType } from "@bridge/shared";
 
+// WEBRTC  imports
+import { addIceCandidate, createAnswer, createDataChannel, createOffer, createPeerConnection, setRemoteAnswer, setRemoteOffer } from "../lib/webrtc";
+
 export default function Home() {
   const socket = useRef<WebSocket | null>(null);
+  const peerREF = useRef<RTCPeerConnection | null>(null)
+  const myRole = useRef<"HOST" | "GUEST" | null>(null);
+  const peerId = useRef<string | null>(null);
+  const dataChannel = useRef<RTCDataChannel | null>(null);
 
   const [connected, setConnected] = useState(false);
   const [message, setMessage] = useState("");
@@ -23,7 +30,7 @@ export default function Home() {
     };
 
     // when socket receive message do this
-    socket.current.onmessage = (event) => {
+    socket.current.onmessage = async (event) => {
       const data = JSON.parse(event.data);
 
       switch (data.type) {
@@ -37,11 +44,103 @@ export default function Home() {
 
         case MessageType.SESSION_JOINED: {
           console.log("Connected to peer:", data.payload.peerId);
+
+          peerREF.current = createPeerConnection((candidate) => {
+
+            socket.current?.send(
+              JSON.stringify({
+                type: MessageType.ICE_CANDIDATE,
+
+                payload: {
+                  targetId: peerId.current,
+                  candidate,
+                },
+              })
+            );
+
+          });;
+
+          myRole.current = data.payload.role;
+          peerId.current = data.payload.peerId;
+
+          if (myRole.current === "HOST") {
+
+            dataChannel.current = createDataChannel(
+              peerREF.current!,
+              (message) => {
+                console.log("Received directly:", message);
+              }
+            );
+
+
+            const offer = await createOffer(peerREF.current!);
+            socket.current?.send(
+              JSON.stringify({
+                type: MessageType.OFFER,
+                payload: {
+                  targetId: peerId.current,
+                  offer
+                }
+              })
+            );
+
+            console.log("Offer sent");
+          }
+
           break;
         }
 
-        default:
+        case MessageType.OFFER: {
+          await setRemoteOffer(
+            peerREF.current!,
+            data.payload.offer
+          );
+
+          console.log("Offer received");
+
+          const answer = await createAnswer(
+            peerREF.current!
+          );
+
+          socket.current?.send(
+            JSON.stringify({
+              type: MessageType.ANSWER,
+
+              payload: {
+                targetId: peerId.current,
+                answer
+              }
+            })
+          );
+
+          console.log("Answer sent");
+
+          break;
+        }
+
+        case MessageType.ANSWER: {
+          await setRemoteAnswer(
+            peerREF.current!,
+            data.payload.answer
+          );
+
+          console.log(data.payload.answer);
+
+          break;
+        }
+
+        case MessageType.ICE_CANDIDATE: {
+          await addIceCandidate(
+            peerREF.current!,
+            data.payload.candidate
+          );
+
+
+        }
+
+        default: {
           console.log("Unknown message:", data.type);
+        }
       }
 
       setMessages((prev) => [...prev, JSON.stringify(data)]);

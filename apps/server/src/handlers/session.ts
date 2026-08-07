@@ -53,6 +53,7 @@ export function handleJoinSession(
             type: MessageType.SESSION_JOINED,
             payload: {
                 peerId: clientId,
+                role: "HOST"
             },
         })
     );
@@ -61,6 +62,7 @@ export function handleJoinSession(
             type: MessageType.SESSION_JOINED,
             payload: {
                 peerId: session.host,
+                role: "GUEST"
             },
         })
     );

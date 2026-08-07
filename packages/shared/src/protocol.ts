@@ -24,7 +24,6 @@ export const MessageType = {
 
 export type MessageType = typeof MessageType[keyof typeof MessageType];
 
-
 export interface ClientIdMessage {
   type: typeof MessageType.CLIENT_ID;
 
@@ -71,7 +70,7 @@ export interface OfferMessage {
 
   payload: {
     targetId: string;
-    offer: RTCSessionDescriptionInit;
+    offer: SDPDescription;
   };
 }
 
@@ -80,7 +79,7 @@ export interface AnswerMessage {
 
   payload: {
     targetId: string;
-    answer: RTCSessionDescriptionInit;
+    answer: SDPDescription;
   };
 }
 
@@ -90,7 +89,7 @@ export interface IceCandidateMessage {
 
   payload: {
     targetId: string;
-    candidate: RTCIceCandidateInit;
+    candidate: ICECandidate;
   };
 }
 
@@ -112,4 +111,17 @@ export type ClientMessage =
 export interface Session {
   host: string;
   guest?: string;
+}
+
+
+export interface SDPDescription {
+  type: "offer" | "answer";
+  sdp?: string;
+}
+
+export interface ICECandidate {
+  candidate: string;
+  sdpMid: string | null;
+  sdpMLineIndex: number | null;
+  usernameFragment?: string | null;
 }

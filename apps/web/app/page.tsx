@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { MessageType } from "@bridge/shared";
 
 // WEBRTC  imports
-import { addIceCandidate, createAnswer, createDataChannel, createOffer, createPeerConnection, setRemoteAnswer, setRemoteOffer } from "../lib/webrtc";
+import { addIceCandidate, createAnswer, createDataChannel, createOffer, createPeerConnection, sendFile, setRemoteAnswer, setRemoteOffer } from "../lib/webrtc";
 
 export default function Home() {
   const socket = useRef<WebSocket | null>(null);
@@ -13,6 +13,7 @@ export default function Home() {
   const myRole = useRef<"HOST" | "GUEST" | null>(null);
   const peerId = useRef<string | null>(null);
   const dataChannel = useRef<RTCDataChannel | null>(null);
+  const incomingFile = useRef<{ data: ArrayBuffer | null } | null>(null);
 
   const [connected, setConnected] = useState(false);
   const [message, setMessage] = useState("");                                 // state for current message
@@ -20,6 +21,7 @@ export default function Home() {
   const [dataChannelOpen, setDataChannelOpen] = useState(false);              // state for kkeping track of connection
   const [sessionCode, setSessionCode] = useState("");                         // usestate for storing the code from next browser
   const pendingCandidates = useRef<RTCIceCandidateInit[]>([]);                // state to store the ice candidates if the offer-answer cyclis still in process
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)         // state for storing the current file
 
   const connect = () => {
 
@@ -76,7 +78,12 @@ export default function Home() {
                 setDataChannelOpen(false);
               },
               (message) => {
-                setReceivedMessages((prev) => [...prev, message]);
+                if (typeof message === "string") {
+                  setReceivedMessages((prev) => [...prev, message]);
+                }
+                if (message instanceof ArrayBuffer) {
+                  handleIncomingFile(message);
+                }
               }
             );
 
@@ -111,8 +118,14 @@ export default function Home() {
                 console.log("🔴 DataChannel CLOSED");
                 setDataChannelOpen(false);
               };
-              channel.onmessage = (e) => {
-                setReceivedMessages((prev) => [...prev, e.data]);
+              channel.onmessage = (event) => {
+                const data = event.data; // This is the actual text or file bytes
+                if (typeof data === "string") {
+                  setReceivedMessages((prev) => [...prev, data]);
+                }
+                if (data instanceof ArrayBuffer) {
+                  handleIncomingFile(data);
+                }
               };
             };
           }
@@ -257,6 +270,29 @@ export default function Home() {
     }
   };
 
+
+  const handleIncomingFile = (arrayBuffer: ArrayBuffer) => {
+
+    console.log('recieved array buffer of size : ', arrayBuffer.byteLength)
+
+    incomingFile.current = { data: arrayBuffer }
+
+    const blob = new Blob([arrayBuffer])
+
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = "received-file";
+
+    link.click();
+
+    URL.revokeObjectURL(url);
+
+    console.log("✅ File downloaded");
+  }
+
   return (
     <main style={{ padding: 40 }}>
       <h1>Bridge v0</h1>
@@ -273,6 +309,42 @@ export default function Home() {
 
       <br />
       <br />
+
+      <input
+        type="file"
+        onChange={(e) => {
+          const file = e.target.files?.[0] ?? null;
+          setSelectedFile(file);
+        }}
+      />
+
+      <button
+        onClick={async () => {
+          if (!selectedFile) {
+            console.log("No file selected");
+            return;
+          }
+
+          if (!dataChannel.current) {
+            console.log("DataChannel doesn't exist");
+            return;
+          }
+
+          try {
+            await sendFile(
+              dataChannel.current,
+              selectedFile
+            );
+
+            console.log("File transfer complete");
+          } catch (error) {
+            console.error("File transfer failed:", error);
+          }
+        }}
+        disabled={!dataChannelOpen || !selectedFile === null}
+      >
+        Send File
+      </button>
 
       <input
         value={message}

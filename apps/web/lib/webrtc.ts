@@ -92,12 +92,13 @@ export function createDataChannel(
   peer: RTCPeerConnection,
   onOpen: () => void,
   onClose: () => void,
-  onMessage: (message: string) => void
+  onMessage: (message: string | ArrayBuffer) => void
 ) {
 
   // creting the channel by host
   const channel = peer.createDataChannel("bridge");
 
+  channel.binaryType = "arraybuffer"; 
 
   // fires only once on channel creation
   channel.onopen = () => {
@@ -120,3 +121,46 @@ export function createDataChannel(
   return channel;
 }
 
+
+
+// CREATING THE FUNCTION FOR HANDLING FILE TRANSFER
+export function sendFile(
+  channel: RTCDataChannel,
+  file: File) {
+
+  return new Promise<void>((resolve, reject) => {
+
+    if (channel.readyState !== "open") {
+      reject(new Error("Data channel is not open , terminating reading process"))
+      return;
+    }
+
+    const reader = new FileReader()
+
+    reader.onload = () => {
+      // checking if correct format readed
+      if (!(reader.result instanceof ArrayBuffer)) {
+        reject(new Error("Could not read file as ArrayBuffer"))
+        return;
+      }
+
+      // now sending result
+      channel.send(reader.result)
+
+      console.log(
+        `📤 Sent file: ${file.name} (${file.size} bytes)`
+      );
+
+      resolve()
+    }
+
+    reader.onerror = () => {
+      reject(reader.error)
+    }
+
+
+    reader.readAsArrayBuffer(file)
+
+  }
+  )
+}

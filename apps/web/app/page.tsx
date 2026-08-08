@@ -13,7 +13,15 @@ export default function Home() {
   const myRole = useRef<"HOST" | "GUEST" | null>(null);
   const peerId = useRef<string | null>(null);
   const dataChannel = useRef<RTCDataChannel | null>(null);
-  const incomingFile = useRef<{ data: ArrayBuffer | null } | null>(null);
+  const incomingFile = useRef<{
+    data: ArrayBuffer[];
+    name: string;
+    size: number;
+    mimeType: string;
+    totalChunks: number;
+    receivedChunks: number;
+    startTime: number;
+  } | null>(null);
 
   const [connected, setConnected] = useState(false);
   const [message, setMessage] = useState("");                                 // state for current message
@@ -82,7 +90,7 @@ export default function Home() {
                   setReceivedMessages((prev) => [...prev, message]);
                 }
                 if (message instanceof ArrayBuffer) {
-                  handleIncomingFile(message);
+                  // handleIncomingFile(message);
                 }
               }
             );
@@ -118,13 +126,108 @@ export default function Home() {
                 console.log("🔴 DataChannel CLOSED");
                 setDataChannelOpen(false);
               };
+
+
               channel.onmessage = (event) => {
-                const data = event.data; // This is the actual text or file bytes
-                if (typeof data === "string") {
-                  setReceivedMessages((prev) => [...prev, data]);
+
+                if (typeof event.data === "string") {
+                  const data = JSON.parse(event.data)
+
+
+                  if (data.type === "FILE_START") {
+                    incomingFile.current = {
+                      data: [],
+                      name: data.name,
+                      size: data.size,
+                      mimeType: data.mimeType,
+                      totalChunks: data.totalChunks,
+                      receivedChunks: 0,
+                      startTime: performance.now()
+                    };
+                    console.log(
+                      `📥 Receiving ${data.name}`
+                    );
+                    return;
+                  }
+
+                  if (data.type === "FILE_END") {
+                    const transfer = incomingFile.current
+
+                    if (!transfer) {
+                      console.error(
+                        "Received FILE_END without FILE_START"
+                      );
+                      return;
+                    }
+
+                    const endTime = performance.now();
+
+                    const duration =
+                      endTime - transfer.startTime;
+
+                    const seconds =
+                      (duration / 1000).toFixed(2);
+
+                    setReceivedMessages((prev) => [
+                      ...prev,
+                      `📥 ${transfer.name} received in ${seconds}s`,
+                    ]);
+
+                    const blob = new Blob(transfer.data, { type: transfer.mimeType })
+
+                    const url = URL.createObjectURL(blob)
+
+                    const link =
+                      document.createElement("a");
+
+                    link.href = url;
+                    link.download = transfer.name;
+
+                    link.click();
+
+                    URL.revokeObjectURL(url);
+
+                    console.log(
+                      `✅ Received ${transfer.name}`
+                    );
+
+                    incomingFile.current = null;
+
+
+
+                    setReceivedMessages((prev) => [
+                      ...prev,
+                      `📥 ${transfer.name} received in ${seconds}s`,
+                    ]);
+
+                    return;
+                  }
+
+                  // Normal text message
+                  setReceivedMessages((prev) => [
+                    ...prev,
+                    event.data,
+                  ]);
+
+                  return;
                 }
-                if (data instanceof ArrayBuffer) {
-                  handleIncomingFile(data);
+
+                if (event.data instanceof ArrayBuffer) {
+                  const transfer = incomingFile.current;
+
+                  if (!transfer) {
+                    console.error(
+                      "Received chunk without FILE_START"
+                    );
+                    return;
+                  }
+
+                  transfer.data.push(event.data);
+                  transfer.receivedChunks++;
+
+                  console.log(
+                    `📥 Chunk ${transfer.receivedChunks}/${transfer.totalChunks}`
+                  );
                 }
               };
             };
@@ -271,27 +374,27 @@ export default function Home() {
   };
 
 
-  const handleIncomingFile = (arrayBuffer: ArrayBuffer) => {
+  // const handleIncomingFile = (arrayBuffer: ArrayBuffer) => {
 
-    console.log('recieved array buffer of size : ', arrayBuffer.byteLength)
+  //   console.log('recieved array buffer of size : ', arrayBuffer.byteLength)
 
-    incomingFile.current = { data: arrayBuffer }
+  //   incomingFile.current = { data: arrayBuffer }
 
-    const blob = new Blob([arrayBuffer])
+  //   const blob = new Blob([arrayBuffer])
 
-    const url = URL.createObjectURL(blob);
+  //   const url = URL.createObjectURL(blob);
 
-    const link = document.createElement("a");
+  //   const link = document.createElement("a");
 
-    link.href = url;
-    link.download = "received-file";
+  //   link.href = url;
+  //   link.download = "received-file";
 
-    link.click();
+  //   link.click();
 
-    URL.revokeObjectURL(url);
+  //   URL.revokeObjectURL(url);
 
-    console.log("✅ File downloaded");
-  }
+  //   console.log("✅ File downloaded");
+  // }
 
   return (
     <main style={{ padding: 40 }}>

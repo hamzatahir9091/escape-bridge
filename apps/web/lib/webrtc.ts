@@ -98,7 +98,9 @@ export function createDataChannel(
   // creting the channel by host
   const channel = peer.createDataChannel("bridge");
 
-  channel.binaryType = "arraybuffer"; 
+  channel.bufferedAmountLowThreshold =
+    4 * 1024 * 1024;
+  channel.binaryType = "arraybuffer";
 
   // fires only once on channel creation
   channel.onopen = () => {
@@ -124,43 +126,123 @@ export function createDataChannel(
 
 
 // CREATING THE FUNCTION FOR HANDLING FILE TRANSFER
-export function sendFile(
-  channel: RTCDataChannel,
-  file: File) {
+// export function sendFile(
+//   channel: RTCDataChannel,
+//   file: File) {
 
-  return new Promise<void>((resolve, reject) => {
+//   return new Promise<void>((resolve, reject) => {
 
-    if (channel.readyState !== "open") {
-      reject(new Error("Data channel is not open , terminating reading process"))
-      return;
-    }
+//     if (channel.readyState !== "open") {
+//       reject(new Error("Data channel is not open , terminating reading process"))
+//       return;
+//     }
 
-    const reader = new FileReader()
+//     const reader = new FileReader()
 
-    reader.onload = () => {
-      // checking if correct format readed
-      if (!(reader.result instanceof ArrayBuffer)) {
-        reject(new Error("Could not read file as ArrayBuffer"))
-        return;
-      }
+//     reader.onload = () => {
+//       // checking if correct format readed
+//       if (!(reader.result instanceof ArrayBuffer)) {
+//         reject(new Error("Could not read file as ArrayBuffer"))
+//         return;
+//       }
 
-      // now sending result
-      channel.send(reader.result)
+//       // now sending result
+//       channel.send(reader.result)
 
-      console.log(
-        `📤 Sent file: ${file.name} (${file.size} bytes)`
-      );
+//       console.log(
+//         `📤 Sent file: ${file.name} (${file.size} bytes)`
+//       );
 
-      resolve()
-    }
+//       resolve()
+//     }
 
-    reader.onerror = () => {
-      reject(reader.error)
-    }
+//     reader.onerror = () => {
+//       reject(reader.error)
+//     }
 
 
-    reader.readAsArrayBuffer(file)
+//     reader.readAsArrayBuffer(file)
 
+//   }
+//   )
+// }
+
+export async function sendFile(channel: RTCDataChannel, file: File) {
+
+  // checking if  data channel is open or not 
+  if (channel.readyState !== "open") {
+    throw new Error("DataChannel is not open");
   }
+
+  // now calculating the total chunk
+  const totalChunks = Math.ceil(file.size / FILE_CHUNK_SIZE)
+
+  // now telling the reciver about file incoming 
+  channel.send(
+    JSON.stringify({
+      type: "FILE_START",
+      name: file.name,
+      size: file.size,
+      mimeType: file.type,
+      totalChunks
+    })
   )
+
+  //now logic for sending chunks 
+  for (let index = 0; index < totalChunks; index++) {
+
+    // calculating start and end of chunk to slice the file
+    const start = index * FILE_CHUNK_SIZE;
+    const end = Math.min(start + FILE_CHUNK_SIZE, file.size)
+
+    // now slicing the file 
+    const chunk = await file.slice(start, end).arrayBuffer()
+
+    // now checking the traffic before sending the chunk to channel
+
+    while (channel.bufferedAmount > MAX_BUFFERED_AMOUNT) {
+      await new Promise<void>((resolve) => {
+        const checkBuffer = () => {
+          if (
+            channel.bufferedAmount <=
+            MAX_BUFFERED_AMOUNT
+          ) {
+            channel.removeEventListener(
+              "bufferedamountlow",
+              checkBuffer
+            );
+
+            resolve();
+          }
+        };
+
+        channel.addEventListener(
+          "bufferedamountlow",
+          checkBuffer
+        );
+      })
+    }
+
+    channel.send(chunk)
+    console.log(
+      `📤 Chunk ${index + 1}/${totalChunks}`
+    );
+  }
+
+  channel.send(
+    JSON.stringify({
+      type: "FILE_END",
+    })
+  );
+
+  console.log(
+    `✅ File sent: ${file.name}`
+  );
+
 }
+
+// FILE CHUNKING LOGIC 
+
+const FILE_CHUNK_SIZE = 64 * 1024;
+const MAX_BUFFERED_AMOUNT = 4 * 1024 * 1024
+

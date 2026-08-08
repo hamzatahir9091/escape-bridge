@@ -7,30 +7,9 @@ const config = {
 export function createPeerConnection(
   onIceCandidate: (candidate: RTCIceCandidate) => void
 ) {
+
   const peer = new RTCPeerConnection(config);
-  console.log("peer craeted successfully! : ", peer);
 
-
-  peer.onicegatheringstatechange = () => {
-    console.log("ICE Gathering:", peer.iceGatheringState);
-  };
-
-  peer.oniceconnectionstatechange = () => {
-    console.log("ICE Connection:", peer.iceConnectionState);
-  };
-
-  peer.onconnectionstatechange = () => {
-    console.log("Connection:", peer.connectionState);
-  };
-
-
-  peer.onconnectionstatechange = () => {
-    console.log("Connection State:", peer.connectionState);
-  };
-
-  peer.oniceconnectionstatechange = () => {
-    console.log("ICE State:", peer.iceConnectionState);
-  };
 
   // listeneing for ice candidates from browser
   peer.onicecandidate = (event) => {
@@ -40,36 +19,6 @@ export function createPeerConnection(
     }
   };
 
-
-
-
-
-
-
-
-
-
-
-  peer.ondatachannel = (event) => {
-    const channel = event.channel;
-
-    console.log("📡 Guest received DataChannel:", channel.label);
-
-    channel.onopen = () => {
-      console.log("🟢 DataChannel OPEN");
-
-      // Temporary: lets you test from the browser console
-      (window as any).bridgeChannel = channel;
-    };
-
-    channel.onclose = () => {
-      console.log("🔴 DataChannel CLOSED");
-    };
-
-    channel.onmessage = (event) => {
-      console.log("Received directly:", event.data);
-    };
-  };
   return peer;
 }
 
@@ -141,31 +90,33 @@ export async function addIceCandidate(
 
 export function createDataChannel(
   peer: RTCPeerConnection,
+  onOpen: () => void,
+  onClose: () => void,
   onMessage: (message: string) => void
 ) {
 
-  // creating the data channel
-  const channel = peer.createDataChannel("bridge")
+  // creting the channel by host
+  const channel = peer.createDataChannel("bridge");
 
-  // now handling the data channel
 
+  // fires only once on channel creation
   channel.onopen = () => {
-    console.log('🟢 DataChannel OPEN');
-
-
-    // Temporary testing
-    (window as any).bridgeChannel = channel;
-  }
-
-
-  channel.onclose = () => {
-    console.log("🔴 DataChannel CLOSED");
+    console.log("🟢 DataChannel OPEN");
+    onOpen();
   };
 
+  // fires only once on channel dead
+  channel.onclose = () => {
+    console.log("🔴 DataChannel CLOSED");
+    onClose()
+  };
+
+
+  // ITS THE REAL MESSAGE LISTNER FROM THE GUEST FOR HOST       <-------------- ###
   channel.onmessage = (event) => {
     onMessage(event.data);
   };
 
-
   return channel;
 }
+

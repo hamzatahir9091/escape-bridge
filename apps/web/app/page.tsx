@@ -15,10 +15,11 @@ export default function Home() {
   const dataChannel = useRef<RTCDataChannel | null>(null);
 
   const [connected, setConnected] = useState(false);
-  const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState<string[]>([]);
-  const [sessionCode, setSessionCode] = useState("");     // usestate for storing the code from next browser
-
+  const [message, setMessage] = useState("");                                 // state for current message
+  const [receivedMessages, setReceivedMessages] = useState<string[]>([]);     // state for storing chat messages
+  const [dataChannelOpen, setDataChannelOpen] = useState(false);              // state for kkeping track of connection
+  const [sessionCode, setSessionCode] = useState("");                         // usestate for storing the code from next browser
+  const pendingCandidates = useRef<RTCIceCandidateInit[]>([]);                // state to store the ice candidates if the offer-answer cyclis still in process
 
   const connect = () => {
 
@@ -46,29 +47,36 @@ export default function Home() {
           console.log("Connected to peer:", data.payload.peerId);
 
           peerREF.current = createPeerConnection((candidate) => {
+            if (candidate) {
+              socket.current?.send(
+                JSON.stringify({
+                  type: MessageType.ICE_CANDIDATE,
 
-            socket.current?.send(
-              JSON.stringify({
-                type: MessageType.ICE_CANDIDATE,
-
-                payload: {
-                  targetId: peerId.current,
-                  candidate,
-                },
-              })
-            );
-
+                  payload: {
+                    targetId: peerId.current,
+                    candidate,
+                  },
+                })
+              );
+            }
           });;
 
           myRole.current = data.payload.role;
           peerId.current = data.payload.peerId;
 
+          // ONLY RUN THIS CODE IF ITS HOST BROWSER <-------------------------  ###
           if (myRole.current === "HOST") {
 
             dataChannel.current = createDataChannel(
               peerREF.current!,
+              () => {
+                setDataChannelOpen(true);
+              },
+              () => {
+                setDataChannelOpen(false);
+              },
               (message) => {
-                console.log("Received directly:", message);
+                setReceivedMessages((prev) => [...prev, message]);
               }
             );
 
@@ -87,16 +95,41 @@ export default function Home() {
             console.log("Offer sent");
           }
 
+          // ONLY RUN THIS CODE IF ITS GUEST BROWSER <-------------------------  ###
+          if (myRole.current === "GUEST") {
+
+            peerREF.current.ondatachannel = (event) => {
+              const channel = event.channel;
+              dataChannel.current = channel;
+
+              channel.onopen = () => {
+                console.log("🟢 DataChannel OPEN");
+                setDataChannelOpen(true);
+              };
+
+              channel.onclose = () => {
+                console.log("🔴 DataChannel CLOSED");
+                setDataChannelOpen(false);
+              };
+              channel.onmessage = (e) => {
+                setReceivedMessages((prev) => [...prev, e.data]);
+              };
+            };
+          }
+
           break;
         }
 
         case MessageType.OFFER: {
+
           await setRemoteOffer(
             peerREF.current!,
             data.payload.offer
           );
 
           console.log("Offer received");
+
+          await processPendingCandidates();
 
           const answer = await createAnswer(
             peerREF.current!
@@ -126,16 +159,28 @@ export default function Home() {
 
           console.log(data.payload.answer);
 
+          processPendingCandidates();
+
           break;
         }
 
         case MessageType.ICE_CANDIDATE: {
-          await addIceCandidate(
-            peerREF.current!,
-            data.payload.candidate
-          );
 
+          const candidate = data.payload.candidate
 
+          if (!peerREF.current) {
+            return;
+          }
+
+          if (peerREF.current?.remoteDescription) {
+            // If we already know the remote side, add it immediately
+            await addIceCandidate(peerREF.current, candidate);
+          } else {
+            // If not, put it in the waiting room
+            pendingCandidates.current.push(candidate);
+            console.log("⏳ ICE candidate queued - remoteDescription not set yet");
+          }
+          break;
         }
 
         default: {
@@ -143,7 +188,6 @@ export default function Home() {
         }
       }
 
-      setMessages((prev) => [...prev, JSON.stringify(data)]);
     };
 
 
@@ -154,23 +198,27 @@ export default function Home() {
     };
   };
 
-  const sendMessage = () => {
-    console.log("Button clicked");
-
-    console.log(socket.current);
-
-    console.log(message);
-
-    if (!socket.current) {
-      console.log("Socket doesn't exist");
+  const sendDataChannelMessage = () => {
+    if (!dataChannel.current) {
+      console.log("DataChannel doesn't exist");
       return;
     }
 
-    console.log("Sending...");
+    if (dataChannel.current.readyState !== "open") {
+      console.log("DataChannel isn't open");
+      return;
+    }
 
-    socket.current.send(message);
+    if (!message.trim()) {
+      return;
+    }
 
-    setMessages((prev) => [...prev, `You: ${message}`]);
+    dataChannel.current.send(message);
+
+    setReceivedMessages((prev) => [
+      ...prev,
+      `You: ${message}`,
+    ]);
 
     setMessage("");
   };
@@ -199,10 +247,23 @@ export default function Home() {
     )
   }
 
+  const processPendingCandidates = async () => {
+    if (peerREF.current) {
+      console.log(`Processing ${pendingCandidates.current.length} queued candidates`);
+      for (const candidate of pendingCandidates.current) {
+        await addIceCandidate(peerREF.current, candidate);
+      }
+      pendingCandidates.current = []; // Clear the queue
+    }
+  };
 
   return (
     <main style={{ padding: 40 }}>
       <h1>Bridge v0</h1>
+      <p>
+        DataChannel:{" "}
+        {dataChannelOpen ? "🟢 Connected" : "🔴 Not connected"}
+      </p>
 
       <button onClick={connect} disabled={connected}>
         {connected ? "Connected" : "Connect"}
@@ -219,7 +280,12 @@ export default function Home() {
         placeholder="Type..."
       />
 
-      <button onClick={sendMessage}>Send</button>
+      <button
+        onClick={sendDataChannelMessage}
+        disabled={!dataChannelOpen}
+      >
+        Send P2P
+      </button>
 
       <br />
 
@@ -234,9 +300,11 @@ export default function Home() {
 
       <hr />
 
-      {messages.map((msg, index) => (
-        <p key={index}>{msg}</p>
-      ))}
+      <div>
+        {receivedMessages.map((msg, index) => (
+          <p key={index}>{msg}</p>
+        ))}
+      </div>
     </main>
   );
 }

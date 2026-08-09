@@ -128,46 +128,7 @@ export function createDataChannel(
 
 
 // CREATING THE FUNCTION FOR HANDLING FILE TRANSFER
-// export function sendFile(
-//   channel: RTCDataChannel,
-//   file: File) {
 
-//   return new Promise<void>((resolve, reject) => {
-
-//     if (channel.readyState !== "open") {
-//       reject(new Error("Data channel is not open , terminating reading process"))
-//       return;
-//     }
-
-//     const reader = new FileReader()
-
-//     reader.onload = () => {
-//       // checking if correct format readed
-//       if (!(reader.result instanceof ArrayBuffer)) {
-//         reject(new Error("Could not read file as ArrayBuffer"))
-//         return;
-//       }
-
-//       // now sending result
-//       channel.send(reader.result)
-
-//       console.log(
-//         `📤 Sent file: ${file.name} (${file.size} bytes)`
-//       );
-
-//       resolve()
-//     }
-
-//     reader.onerror = () => {
-//       reject(reader.error)
-//     }
-
-
-//     reader.readAsArrayBuffer(file)
-
-//   }
-//   )
-// }
 
 export async function sendFile(channel: RTCDataChannel, file: File) {
 

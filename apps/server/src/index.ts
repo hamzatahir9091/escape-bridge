@@ -8,7 +8,7 @@ import { handleAnswer, handleIceCandidate, handleOffer } from "./handlers/webrtc
 import { handleDeviceRegister } from "./handlers/device";
 import { devices } from "./store/devices";
 import { handleCreateRoom, handleJoinRoom, handleDeviceDisconnect } from "./handlers/room";
-
+import { handleRoomOffer, handleRoomAnswer, handleRoomIceCandidate, } from "./handlers/roomWebrtc";
 
 const app = express();
 
@@ -122,6 +122,21 @@ wss.on("connection", (socket: WebSocket) => {
                     data
                 );
 
+                break;
+            }
+
+            case MessageType.ROOM_OFFER: {
+                handleRoomOffer(clientId, data);
+                break;
+            }
+
+            case MessageType.ROOM_ANSWER: {
+                handleRoomAnswer(clientId, data);
+                break;
+            }
+
+            case MessageType.ROOM_ICE_CANDIDATE: {
+                handleRoomIceCandidate(clientId, data);
                 break;
             }
         }

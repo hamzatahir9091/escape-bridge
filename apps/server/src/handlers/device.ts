@@ -5,7 +5,7 @@ import {
 
 import { WebSocket } from "ws";
 import { devices } from "../store/devices";
-import { rooms, clients , Room } from "../store/state";
+import { rooms, clients, Room } from "../store/state";
 
 export function handleDeviceRegister(
   socket: WebSocket,
@@ -53,6 +53,17 @@ export function handleDeviceRegister(
     );
 
     const roomDevices = getRoomDevices(room);
+
+    // Send current room state to the reconnecting device
+    socket.send(
+      JSON.stringify({
+        type: MessageType.ROOM_JOINED,
+        payload: {
+          code: room.code,
+          devices: roomDevices,
+        },
+      })
+    );
 
     // Tell every currently online room member
     for (const member of room.devices.values()) {

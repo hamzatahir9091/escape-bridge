@@ -14,6 +14,10 @@ export default function Home() {
   const myRole = useRef<"HOST" | "GUEST" | null>(null);
   const peerId = useRef<string | null>(null);
   const dataChannel = useRef<RTCDataChannel | null>(null);
+
+  const roomPeers = useRef<Map<string, RTCPeerConnection>>(new Map());
+  const roomDataChannels = useRef<Map<string, RTCDataChannel>>(new Map());
+
   const incomingFile = useRef<{
     transferId: string;
     data: ArrayBuffer[];
@@ -42,6 +46,7 @@ export default function Home() {
       isHost: boolean;
     }[]
   >([]);
+  const [roomPeerStatus, setRoomPeerStatus] = useState<Record<string, boolean>>({});
 
   const connect = () => {
 
@@ -363,6 +368,161 @@ export default function Home() {
           break;
         }
 
+        case MessageType.ROOM_OFFER: {
+          console.log(
+            `📥 Room OFFER received from ${data.payload.senderDeviceId}`
+          );
+
+          const senderDeviceId = data.payload.senderDeviceId;
+
+          // Don't create another peer if we already have one
+          if (roomPeers.current.has(senderDeviceId)) {
+            console.log(
+              "Already have room peer:",
+              senderDeviceId
+            );
+            break;
+          }
+
+          const peer = createPeerConnection((candidate) => {
+            if (!candidate) {
+              return;
+            }
+
+            socket.current?.send(
+              JSON.stringify({
+                type: MessageType.ROOM_ICE_CANDIDATE,
+                payload: {
+                  senderDeviceId: getDeviceID(),
+                  targetDeviceId: senderDeviceId,
+                  candidate,
+                },
+              })
+            );
+          });
+
+          roomPeers.current.set(senderDeviceId, peer);
+
+          peer.onconnectionstatechange = () => {
+            console.log(
+              `Room peer ${senderDeviceId}:`,
+              peer.connectionState
+            );
+
+            setRoomPeerStatus((prev) => ({
+              ...prev,
+              [senderDeviceId]:
+                peer.connectionState === "connected",
+            }));
+          };
+
+          peer.ondatachannel = (event) => {
+            const channel = event.channel;
+
+            roomDataChannels.current.set(
+              senderDeviceId,
+              channel
+            );
+
+            channel.onopen = () => {
+              console.log(
+                `🟢 Room DataChannel OPEN → ${senderDeviceId}`
+              );
+            };
+
+            channel.onclose = () => {
+              console.log(
+                `🔴 Room DataChannel CLOSED → ${senderDeviceId}`
+              );
+            };
+
+            channel.binaryType = "arraybuffer";
+
+            channel.onmessage = handleIncomingFileMessage;
+          };
+
+          await setRemoteOffer(
+            peer,
+            data.payload.offer
+          );
+
+          console.log(
+            `✅ Room OFFER applied from ${senderDeviceId}`
+          );
+
+          const answer = await createAnswer(peer);
+
+          socket.current?.send(
+            JSON.stringify({
+              type: MessageType.ROOM_ANSWER,
+              payload: {
+                senderDeviceId: getDeviceID(),
+                targetDeviceId: data.payload.senderDeviceId,
+                answer,
+              },
+            })
+          );
+
+          console.log(
+            "📤 Room ANSWER sent →",
+            data.payload.senderDeviceId
+          );
+
+          break;
+        }
+
+        case MessageType.ROOM_ANSWER: {
+          const deviceId = data.payload.senderDeviceId;
+
+          const peer = roomPeers.current.get(deviceId);
+
+          if (!peer) {
+            console.log(
+              "Room peer not found for answer:",
+              deviceId
+            );
+            break;
+          }
+
+          await setRemoteAnswer(
+            peer,
+            data.payload.answer
+          );
+
+          console.log(
+            "✅ Room ANSWER applied from",
+            deviceId
+          );
+
+          break;
+        }
+
+        case MessageType.ROOM_ICE_CANDIDATE: {
+          const senderDeviceId = data.payload.senderDeviceId;
+
+          const peer = roomPeers.current.get(senderDeviceId);
+
+          if (!peer) {
+            console.log(
+              "Room peer not found for ICE candidate:",
+              senderDeviceId
+            );
+            break;
+          }
+
+          await addIceCandidate(
+            peer,
+            data.payload.candidate
+          );
+
+          console.log(
+            "✅ Room ICE candidate applied from",
+            senderDeviceId
+          );
+
+          break;
+        }
+
         default: {
           console.log("Unknown message:", data.type);
         }
@@ -448,7 +608,7 @@ export default function Home() {
   };
 
   const joinRoom = () => {
-    if (!roomCode.trim) {
+    if (!roomCode.trim()) {
       console.log('rooomcode not entered')
       return
     }
@@ -465,114 +625,279 @@ export default function Home() {
     )
   }
 
-  // const handleIncomingFile = (arrayBuffer: ArrayBuffer) => {
 
-  //   console.log('recieved array buffer of size : ', arrayBuffer.byteLength)
+  const connectToRoomDevice = async (
+    device: {
+      deviceId: string;
+      deviceName: string;
+      online: boolean;
+      isHost: boolean;
+    }
+  ) => {
+    if (!roomCode) {
+      console.log("No room code");
+      return;
+    }
 
-  //   incomingFile.current = { data: arrayBuffer }
+    if (!device.online) {
+      return;
+    }
 
-  //   const blob = new Blob([arrayBuffer])
+    if (roomPeers.current.has(device.deviceId)) {
+      console.log(
+        "Already have room peer:",
+        device.deviceId
+      );
+      return;
+    }
 
-  //   const url = URL.createObjectURL(blob);
+    console.log(
+      `🔗 Connecting to room device: ${device.deviceName}`
+    );
 
-  //   const link = document.createElement("a");
+    const peer = createPeerConnection((candidate) => {
+      if (!candidate) {
+        return;
+      }
 
-  //   link.href = url;
-  //   link.download = "received-file";
+      socket.current?.send(
+        JSON.stringify({
+          type: MessageType.ROOM_ICE_CANDIDATE,
+          payload: {
+            senderDeviceId: getDeviceID(),
+            targetDeviceId: device.deviceId,
+            candidate,
+          },
+        })
+      );
+    });
 
-  //   link.click();
+    roomPeers.current.set(device.deviceId, peer);
 
-  //   URL.revokeObjectURL(url);
+    peer.onconnectionstatechange = () => {
+      console.log(
+        `Room peer ${device.deviceName}:`,
+        peer.connectionState
+      );
 
-  //   console.log("✅ File downloaded");
-  // }
+      setRoomPeerStatus((prev) => ({
+        ...prev,
+        [device.deviceId]:
+          peer.connectionState === "connected",
+      }));
+    };
 
-  // return (
-  //   <main style={{ padding: 40 }}>
-  //     <h1>Bridge v0</h1>
-  //     <p>
-  //       DataChannel:{" "}
-  //       {dataChannelOpen ? "🟢 Connected" : "🔴 Not connected"}
-  //     </p>
 
-  //     <button onClick={connect} disabled={connected}>
-  //       {connected ? "Connected" : "Connect"}
-  //     </button>
-  //     <br />
-  //     <button onClick={createSession}>Create session</button>
+    const channel = peer.createDataChannel("bridge-room");
 
-  //     <br />
-  //     <br />
+    channel.onopen = () => {
+      console.log(
+        `🟢 Room DataChannel OPEN → ${device.deviceName}`
+      );
+    };
 
-  //     <input
-  //       type="file"
-  //       onChange={(e) => {
-  //         const file = e.target.files?.[0] ?? null;
-  //         setSelectedFile(file);
-  //       }}
-  //     />
+    channel.onclose = () => {
+      console.log(
+        `🔴 Room DataChannel CLOSED → ${device.deviceName}`
+      );
+    };
 
-  //     <button
-  //       onClick={async () => {
-  //         if (!selectedFile) {
-  //           console.log("No file selected");
-  //           return;
-  //         }
+    roomDataChannels.current.set(
+      device.deviceId,
+      channel
+    );
 
-  //         if (!dataChannel.current) {
-  //           console.log("DataChannel doesn't exist");
-  //           return;
-  //         }
+    const offer = await createOffer(peer);
 
-  //         try {
-  //           await sendFile(
-  //             dataChannel.current,
-  //             selectedFile
-  //           );
+    socket.current?.send(
+      JSON.stringify({
+        type: MessageType.ROOM_OFFER,
+        payload: {
+          senderDeviceId: getDeviceID(),
+          targetDeviceId: device.deviceId,
+          offer,
+        },
+      })
+    );
 
-  //           console.log("File transfer complete");
-  //         } catch (error) {
-  //           console.error("File transfer failed:", error);
-  //         }
-  //       }}
-  //       disabled={!dataChannelOpen || !selectedFile === null}
-  //     >
-  //       Send File
-  //     </button>
+    console.log(
+      `📤 Room OFFER sent → ${device.deviceName}`
+    );
 
-  //     <input
-  //       value={message}
-  //       onChange={(e) => setMessage(e.target.value)}
-  //       placeholder="Type..."
-  //     />
+  };
 
-  //     <button
-  //       onClick={sendDataChannelMessage}
-  //       disabled={!dataChannelOpen}
-  //     >
-  //       Send P2P
-  //     </button>
 
-  //     <br />
+  const disconnectFromRoomDevice = (
+    deviceId: string
+  ) => {
+    const peer = roomPeers.current.get(deviceId);
 
-  //     <input value={sessionCode}
-  //       onChange={(e) => setSessionCode(e.target.value)}
-  //       placeholder="Session Code"
-  //     />
+    if (peer) {
+      peer.close();
+      roomPeers.current.delete(deviceId);
+    }
 
-  //     <button onClick={joinSession}>
-  //       Join Session
-  //     </button>
+    const channel =
+      roomDataChannels.current.get(deviceId);
 
-  //     <hr />
+    if (channel) {
+      channel.close();
+      roomDataChannels.current.delete(deviceId);
+    }
 
-  //     <div>
-  //       {receivedMessages.map((msg, index) => (
-  //         <p key={index}>{msg}</p>
-  //       ))}
-  //     </div>
-  //   </main>
-  // );
+    setRoomPeerStatus((prev) => {
+      const updated = { ...prev };
+      delete updated[deviceId];
+      return updated;
+    });
+
+    console.log(
+      `🔴 Disconnected from room device: ${deviceId}`
+    );
+  };
+
+  const sendFileToRoomDevice = async (
+    deviceId: string,
+    file: File
+  ) => {
+    const channel = roomDataChannels.current.get(deviceId);
+
+    if (!channel) {
+      console.log("No DataChannel for this device");
+      return;
+    }
+
+    if (channel.readyState !== "open") {
+      console.log("Room DataChannel isn't open");
+      return;
+    }
+
+    try {
+      await sendFile(channel, file);
+
+      console.log(
+        `✅ File sent → ${deviceId}`
+      );
+    } catch (error) {
+      console.error(
+        "❌ Room file transfer failed:",
+        error
+      );
+    }
+  };
+
+  const handleIncomingFileMessage = (
+    event: MessageEvent
+  ) => {
+    if (typeof event.data === "string") {
+      const data = JSON.parse(event.data);
+
+      if (data.type === "FILE_START") {
+        incomingFile.current = {
+          transferId: data.payload.transferId,
+          data: [],
+          name: data.payload.name,
+          size: data.payload.size,
+          mimeType: data.payload.mimeType,
+          totalChunks: data.payload.totalChunks,
+          chunkSize: data.payload.chunkSize,
+          receivedChunks: 0,
+          startTime: performance.now(),
+        };
+
+        console.log(
+          `📥 Receiving ${data.payload.name}`
+        );
+
+        return;
+      }
+
+      if (data.type === "FILE_END") {
+        const transfer = incomingFile.current;
+
+        if (!transfer) {
+          console.error(
+            "Received FILE_END without FILE_START"
+          );
+          return;
+        }
+
+        if (
+          data.payload.transferId !==
+          transfer.transferId
+        ) {
+          console.error("Transfer ID mismatch");
+          return;
+        }
+
+        if (
+          transfer.receivedChunks !==
+          transfer.totalChunks
+        ) {
+          console.error(
+            `Missing chunks: ${transfer.receivedChunks}/${transfer.totalChunks}`
+          );
+          return;
+        }
+
+        const endTime = performance.now();
+
+        const seconds = (
+          (endTime - transfer.startTime) /
+          1000
+        ).toFixed(2);
+
+        const blob = new Blob(
+          transfer.data,
+          { type: transfer.mimeType }
+        );
+
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement("a");
+
+        link.href = url;
+        link.download = transfer.name;
+
+        link.click();
+
+        URL.revokeObjectURL(url);
+
+        console.log(
+          `✅ Received ${transfer.name} in ${seconds}s`
+        );
+
+        setReceivedMessages((prev) => [
+          ...prev,
+          `📥 ${transfer.name} received in ${seconds}s`,
+        ]);
+
+        incomingFile.current = null;
+
+        return;
+      }
+
+      return;
+    }
+
+    if (event.data instanceof ArrayBuffer) {
+      const transfer = incomingFile.current;
+
+      if (!transfer) {
+        console.error(
+          "Received chunk without FILE_START"
+        );
+        return;
+      }
+
+      transfer.data.push(event.data);
+      transfer.receivedChunks++;
+
+      console.log(
+        `📥 Chunk ${transfer.receivedChunks}/${transfer.totalChunks}`
+      );
+    }
+  };
 
 
   return (
@@ -657,8 +982,6 @@ export default function Home() {
         backgroundColor: '#fff',
         borderRadius: '12px',
         border: '1px solid #eee',
-        opacity: dataChannelOpen ? 1 : 0.5,
-        pointerEvents: dataChannelOpen ? 'all' : 'none'
       }}>
         <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '8px', color: '#666', textTransform: 'uppercase' }}>Step 3: Direct Transfer</label>
 
@@ -782,13 +1105,70 @@ export default function Home() {
 
       <br />
       <br />
-      {roomDevices.map((device) => (
+      {/* {roomDevices.map((device) => (
         <p key={device.deviceId}>
           {device.online ? "🟢" : "🔴"}{" "}
           {device.deviceName}
 
           {device.isHost && " 👑 HOST"}
+
+          {device.online &&
+            roomPeerStatus[device.deviceId] && (
+              <> — 🔗 P2P Connected</>
+            )}
         </p>
+        
+      ))} */}
+      {roomDevices.map((device) => (
+        <div key={device.deviceId}>
+          <p>
+            {device.online ? "🟢" : "🔴"}{" "}
+            {device.deviceName}
+
+            {device.isHost && " 👑 HOST"}
+          </p>
+          {device.deviceId !== getDeviceID() && device.online && (
+            roomPeerStatus[device.deviceId] ? (
+              <button
+                onClick={() =>
+                  disconnectFromRoomDevice(device.deviceId)
+                }
+              >
+                Disconnect
+              </button>
+            ) : (
+              <button
+                onClick={() =>
+                  connectToRoomDevice(device)
+                }
+              >
+                Connect
+              </button>
+            )
+          )}
+
+          {device.deviceId !== getDeviceID() &&
+            device.online &&
+            roomPeerStatus[device.deviceId] && (
+              <button
+                onClick={() => {
+                  if (!selectedFile) {
+                    console.log("No file selected");
+                    return;
+                  }
+
+                  sendFileToRoomDevice(
+                    device.deviceId,
+                    selectedFile
+                  );
+                }}
+              >
+                Send File
+              </button>
+            )}
+        </div>
+
+
       ))}
     </main>
   );

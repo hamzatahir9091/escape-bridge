@@ -39,6 +39,11 @@ export const MessageType = {
 
   DEVICE_ONLINE: "DEVICE_ONLINE",
   DEVICE_OFFLINE: "DEVICE_OFFLINE",
+
+
+  ROOM_OFFER: "ROOM_OFFER",
+  ROOM_ANSWER: "ROOM_ANSWER",
+  ROOM_ICE_CANDIDATE: "ROOM_ICE_CANDIDATE",
 } as const;
 
 export type MessageType = typeof MessageType[keyof typeof MessageType];
@@ -56,7 +61,10 @@ export type ServerMessage =
   | DeviceOnlineMessage
   | DeviceOfflineMessage
   | RoomDevicesUpdatedMessage
-  | SessionJoinedMessage;
+  | SessionJoinedMessage
+  | RoomOfferMessage
+  | RoomAnswerMessage
+  | RoomIceCandidateMessage;
 
 export type ClientMessage =
   | CreateSessionMessage
@@ -66,7 +74,10 @@ export type ClientMessage =
   | IceCandidateMessage
   | AnswerMessage
   | CreateRoomMessage
-  | JoinRoomMessage;
+  | JoinRoomMessage
+  | RoomOfferMessage
+  | RoomAnswerMessage
+  | RoomIceCandidateMessage;
 
 export type DataChannelMessage =
   | FileStartMessage
@@ -141,6 +152,64 @@ export interface IceCandidateMessage {
   };
 }
 
+// export interface RoomOfferMessage {
+//   type: typeof MessageType.ROOM_OFFER;
+
+//   payload: {
+//     roomCode: string;
+//     targetClientId: string;
+//     offer: SDPDescription;
+//   };
+// }
+
+// export interface RoomAnswerMessage {
+//   type: typeof MessageType.ROOM_ANSWER;
+
+//   payload: {
+//     roomCode: string;
+//     targetClientId: string;
+//     answer: SDPDescription;
+//   };
+// }
+
+// export interface RoomIceCandidateMessage {
+//   type: typeof MessageType.ROOM_ICE_CANDIDATE;
+
+//   payload: {
+//     roomCode: string;
+//     targetClientId: string;
+//     candidate: ICECandidate;
+//   };
+// }
+
+export interface RoomOfferMessage {
+  type: typeof MessageType.ROOM_OFFER;
+
+  payload: {
+    senderDeviceId: string;
+    targetDeviceId: string;
+    offer: SDPDescription;
+  };
+}
+export interface RoomAnswerMessage {
+  type: typeof MessageType.ROOM_ANSWER;
+
+  payload: {
+    senderDeviceId: string;
+    targetDeviceId: string;
+    answer: SDPDescription;
+  };
+}
+export interface RoomIceCandidateMessage {
+  type: typeof MessageType.ROOM_ICE_CANDIDATE;
+
+  payload: {
+    senderDeviceId: string;
+    targetDeviceId: string;
+    candidate: ICECandidate;
+  };
+}
+
 
 export interface Session {
   host: string;
@@ -150,6 +219,7 @@ export interface Session {
 export interface RoomDevice {
   deviceId: string;
   deviceName: string;
+  clientId: string | null;
   online: boolean;
   isHost: boolean;
 }

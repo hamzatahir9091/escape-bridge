@@ -152,35 +152,6 @@ export interface IceCandidateMessage {
   };
 }
 
-// export interface RoomOfferMessage {
-//   type: typeof MessageType.ROOM_OFFER;
-
-//   payload: {
-//     roomCode: string;
-//     targetClientId: string;
-//     offer: SDPDescription;
-//   };
-// }
-
-// export interface RoomAnswerMessage {
-//   type: typeof MessageType.ROOM_ANSWER;
-
-//   payload: {
-//     roomCode: string;
-//     targetClientId: string;
-//     answer: SDPDescription;
-//   };
-// }
-
-// export interface RoomIceCandidateMessage {
-//   type: typeof MessageType.ROOM_ICE_CANDIDATE;
-
-//   payload: {
-//     roomCode: string;
-//     targetClientId: string;
-//     candidate: ICECandidate;
-//   };
-// }
 
 export interface RoomOfferMessage {
   type: typeof MessageType.ROOM_OFFER;

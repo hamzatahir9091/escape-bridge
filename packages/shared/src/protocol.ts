@@ -13,16 +13,64 @@
 
 export const MessageType = {
   CLIENT_ID: "CLIENT_ID",
+
   CREATE_SESSION: "CREATE_SESSION",
   SESSION_CREATED: "SESSION_CREATED",
+
   JOIN_SESSION: "JOIN_SESSION",
   SESSION_JOINED: "SESSION_JOINED",
+
   OFFER: "OFFER",
   ANSWER: "ANSWER",
   ICE_CANDIDATE: "ICE_CANDIDATE",
+
+  FILE_START: "FILE_START",
+  FILE_END: "FILE_END",
+
+  DEVICE_REGISTER: "DEVICE_REGISTER",
+  DEVICE_REGISTERED: "DEVICE_REGISTERED",
+
+  CREATE_ROOM: "CREATE_ROOM",
+  ROOM_CREATED: "ROOM_CREATED",
+
+  JOIN_ROOM: "JOIN_ROOM",
+  ROOM_JOINED: "ROOM_JOINED",
+  ROOM_DEVICES_UPDATED: "ROOM_DEVICES_UPDATED",
+
+  DEVICE_ONLINE: "DEVICE_ONLINE",
+  DEVICE_OFFLINE: "DEVICE_OFFLINE",
 } as const;
 
 export type MessageType = typeof MessageType[keyof typeof MessageType];
+
+
+export type ServerMessage =
+  | ClientIdMessage
+  | SessionCreatedMessage
+  | OfferMessage
+  | AnswerMessage
+  | IceCandidateMessage
+  | DeviceRegisteredMessage
+  | RoomCreatedMessage
+  | RoomJoinedMessage
+  | DeviceOnlineMessage
+  | DeviceOfflineMessage
+  | RoomDevicesUpdatedMessage
+  | SessionJoinedMessage;
+
+export type ClientMessage =
+  | CreateSessionMessage
+  | JoinSessionMessage
+  | OfferMessage
+  | DeviceRegisterMessage
+  | IceCandidateMessage
+  | AnswerMessage
+  | CreateRoomMessage
+  | JoinRoomMessage;
+
+export type DataChannelMessage =
+  | FileStartMessage
+  | FileEndMessage;
 
 export interface ClientIdMessage {
   type: typeof MessageType.CLIENT_ID;
@@ -93,24 +141,23 @@ export interface IceCandidateMessage {
   };
 }
 
-export type ServerMessage =
-  | ClientIdMessage
-  | SessionCreatedMessage
-  | OfferMessage
-  | AnswerMessage
-  | IceCandidateMessage
-  | SessionJoinedMessage;
-
-export type ClientMessage =
-  | CreateSessionMessage
-  | JoinSessionMessage
-  | OfferMessage
-  | IceCandidateMessage
-  | AnswerMessage;
 
 export interface Session {
   host: string;
   guest?: string;
+}
+
+export interface RoomDevice {
+  deviceId: string;
+  deviceName: string;
+  online: boolean;
+  isHost: boolean;
+}
+
+export interface Room {
+  code: string;
+  hostDeviceId: string;
+  devices: Map<string, RoomDevice>;
 }
 
 
@@ -124,4 +171,108 @@ export interface ICECandidate {
   sdpMid: string | null;
   sdpMLineIndex: number | null;
   usernameFragment?: string | null;
+}
+
+
+export interface FileStartMessage {
+  type: typeof MessageType.FILE_START;
+
+  payload: {
+    transferId: string;
+    name: string;
+    size: number;
+    mimeType: string;
+    totalChunks: number;
+    chunkSize: number;
+  };
+}
+
+export interface FileEndMessage {
+  type: typeof MessageType.FILE_END;
+
+  payload: {
+    transferId: string;
+  };
+}
+
+export interface FileChunkMessage {
+  transferId: string;
+  chunkIndex: number;
+}
+
+export interface DeviceRegisterMessage {
+  type: typeof MessageType.DEVICE_REGISTER;
+
+  payload: {
+    deviceId: string;
+    deviceName: string;
+  };
+}
+
+export interface DeviceRegisteredMessage {
+  type: typeof MessageType.DEVICE_REGISTERED;
+
+  payload: {
+    deviceId: string;
+  };
+}
+
+
+
+
+export interface CreateRoomMessage {
+  type: typeof MessageType.CREATE_ROOM;
+
+  payload: {};
+}
+
+export interface RoomCreatedMessage {
+  type: typeof MessageType.ROOM_CREATED;
+
+  payload: {
+    code: string;
+  };
+}
+
+export interface JoinRoomMessage {
+  type: typeof MessageType.JOIN_ROOM;
+
+  payload: {
+    code: string;
+  };
+}
+
+export interface RoomJoinedMessage {
+  type: typeof MessageType.ROOM_JOINED;
+
+  payload: {
+    code: string;
+    devices: RoomDevice[];
+  };
+}
+
+export interface RoomDevicesUpdatedMessage {
+  type: typeof MessageType.ROOM_DEVICES_UPDATED;
+
+  payload: {
+    devices: RoomDevice[];
+  };
+}
+
+export interface DeviceOnlineMessage {
+  type: typeof MessageType.DEVICE_ONLINE;
+
+  payload: {
+    deviceId: string;
+    deviceName: string;
+  };
+}
+
+
+export interface DeviceOfflineMessage {
+  type: typeof MessageType.DEVICE_OFFLINE;
+
+  payload: {
+    deviceId: string;
+  };
 }

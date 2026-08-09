@@ -5,6 +5,10 @@ import { MessageType, ClientMessage } from "@bridge/shared";
 import { clients, sessions } from "./store/state";
 import { handleCreateSession, handleJoinSession } from "./handlers/session";
 import { handleAnswer, handleIceCandidate, handleOffer } from "./handlers/webrtc";
+import { handleDeviceRegister } from "./handlers/device";
+import { devices } from "./store/devices";
+import { handleCreateRoom, handleJoinRoom, } from "./handlers/room";
+
 
 const app = express();
 
@@ -69,8 +73,55 @@ wss.on("connection", (socket: WebSocket) => {
                 break;
             }
 
-            case MessageType.ICE_CANDIDATE : {
+            case MessageType.ICE_CANDIDATE: {
                 handleIceCandidate(data);
+                break;
+            }
+
+            case MessageType.DEVICE_REGISTER: {
+                handleDeviceRegister(socket, data)
+                break;
+            }
+
+            case MessageType.CREATE_ROOM: {
+                // getting the device by using the socket we have 
+                const device = [...devices.values()].find(
+                    (device) => device.socket === socket
+                )
+
+                if (!device) {
+                    console.log("Device not registered by create room in index.ts");
+                    return;
+                }
+
+                handleCreateRoom(
+                    socket,
+                    clientId,
+                    device.deviceId,
+                    device.deviceName
+                );
+
+                break;
+            }
+
+            case MessageType.JOIN_ROOM: {
+                const device = [...devices.values()].find(
+                    (device) => device.socket === socket
+                );
+
+                if (!device) {
+                    console.log("Device not registered");
+                    return;
+                }
+
+                handleJoinRoom(
+                    socket,
+                    clientId,
+                    device.deviceId,
+                    device.deviceName,
+                    data
+                );
+
                 break;
             }
         }
@@ -78,7 +129,15 @@ wss.on("connection", (socket: WebSocket) => {
 
     socket.on("close", () => {
         console.log("❌ Client disconnected");
+
         clients.delete(clientId);
+
+        for (const [deviceId, device] of devices) {
+            if (device.socket === socket) {
+                devices.delete(deviceId);
+                console.log(`Device offline: ${deviceId}`);
+            }
+        }
     });
 }
     //  This line means

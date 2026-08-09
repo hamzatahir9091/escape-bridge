@@ -1,3 +1,5 @@
+import { MessageType } from "@bridge/shared";
+
 const config = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" }
@@ -178,15 +180,21 @@ export async function sendFile(channel: RTCDataChannel, file: File) {
   const totalChunks = Math.ceil(file.size / FILE_CHUNK_SIZE)
 
   // now telling the reciver about file incoming 
+  const transferId = crypto.randomUUID();
+
   channel.send(
     JSON.stringify({
-      type: "FILE_START",
-      name: file.name,
-      size: file.size,
-      mimeType: file.type,
-      totalChunks
+      type: MessageType.FILE_START,
+      payload: {
+        transferId,
+        name: file.name,
+        size: file.size,
+        mimeType: file.type,
+        totalChunks,
+        chunkSize: FILE_CHUNK_SIZE,
+      },
     })
-  )
+  );
 
   //now logic for sending chunks 
   for (let index = 0; index < totalChunks; index++) {
@@ -231,7 +239,10 @@ export async function sendFile(channel: RTCDataChannel, file: File) {
 
   channel.send(
     JSON.stringify({
-      type: "FILE_END",
+      type: MessageType.FILE_END,
+      payload: {
+        transferId,
+      },
     })
   );
 

@@ -106,6 +106,54 @@ export function handleJoinRoom(socket: WebSocket,
 }
 
 
+export function handleDeviceDisconnect(
+    deviceId: string,
+    clientId: string
+) {
+    for (const room of rooms.values()) {
+        const roomDevice = room.devices.get(deviceId);
+
+        if (!roomDevice) {
+            continue;
+        }
+
+        // Make sure this is the connection that actually disconnected
+        if (roomDevice.clientId !== clientId) {
+            continue;
+        }
+
+        roomDevice.online = false;
+        roomDevice.clientId = null;
+
+        console.log(
+            `Device ${deviceId} went offline in room ${room.code}`
+        );
+
+        const devices = getRoomDevices(room);
+
+        // Notify all currently connected room members
+        for (const device of room.devices.values()) {
+            if (!device.online || !device.clientId) {
+                continue;
+            }
+
+            const target = clients.get(device.clientId);
+
+            if (target) {
+                target.send(
+                    JSON.stringify({
+                        type: MessageType.ROOM_DEVICES_UPDATED,
+                        payload: {
+                            devices,
+                        },
+                    })
+                );
+            }
+        }
+    }
+}
+
+
 function getRoomDevices(room: Room) {
     return Array.from(room.devices.values()).map((device) => ({
         deviceId: device.deviceId,

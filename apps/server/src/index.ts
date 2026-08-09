@@ -7,7 +7,7 @@ import { handleCreateSession, handleJoinSession } from "./handlers/session";
 import { handleAnswer, handleIceCandidate, handleOffer } from "./handlers/webrtc";
 import { handleDeviceRegister } from "./handlers/device";
 import { devices } from "./store/devices";
-import { handleCreateRoom, handleJoinRoom, } from "./handlers/room";
+import { handleCreateRoom, handleJoinRoom, handleDeviceDisconnect } from "./handlers/room";
 
 
 const app = express();
@@ -79,7 +79,7 @@ wss.on("connection", (socket: WebSocket) => {
             }
 
             case MessageType.DEVICE_REGISTER: {
-                handleDeviceRegister(socket, data)
+                handleDeviceRegister(socket, clientId, data)
                 break;
             }
 
@@ -133,10 +133,17 @@ wss.on("connection", (socket: WebSocket) => {
         clients.delete(clientId);
 
         for (const [deviceId, device] of devices) {
-            if (device.socket === socket) {
-                devices.delete(deviceId);
-                console.log(`Device offline: ${deviceId}`);
+            if (device.socket !== socket) {
+                continue;
             }
+
+            // Tell rooms that this device went offline
+            handleDeviceDisconnect(deviceId, clientId);
+
+            // Remove from currently-connected devices
+            devices.delete(deviceId);
+
+            console.log(`Device disconnected: ${deviceId}`);
         }
     });
 }

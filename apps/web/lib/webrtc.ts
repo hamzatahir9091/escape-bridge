@@ -28,15 +28,8 @@ export async function createOffer(peer: RTCPeerConnection) {
   const offer = await peer.createOffer()
   await peer.setLocalDescription(offer);
 
-  console.log("localDescription =", peer.localDescription);
   console.log("iceGatheringState =", peer.iceGatheringState);
 
-  setTimeout(() => {
-    console.log("After 2 seconds:", peer.iceGatheringState);
-  }, 2000);
-
-  console.log("local desc offer :", peer.localDescription);
-  console.log("local desc offer (sdp) :", peer.localDescription?.sdp);
   return offer;
 }
 
@@ -130,8 +123,16 @@ export function createDataChannel(
 // CREATING THE FUNCTION FOR HANDLING FILE TRANSFER
 
 
-export async function sendFile(channel: RTCDataChannel, file: File) {
-
+export async function sendFile(
+  channel: RTCDataChannel,
+  file: File,
+  options?: {
+    onProgress?: (
+      sentBytes: number,
+      totalBytes: number
+    ) => void;
+  }
+) {
   // checking if  data channel is open or not 
   if (channel.readyState !== "open") {
     throw new Error("DataChannel is not open");
@@ -156,6 +157,8 @@ export async function sendFile(channel: RTCDataChannel, file: File) {
       },
     })
   );
+
+  let sentBytes = 0;
 
   //now logic for sending chunks 
   for (let index = 0; index < totalChunks; index++) {
@@ -193,6 +196,13 @@ export async function sendFile(channel: RTCDataChannel, file: File) {
     }
 
     channel.send(chunk)
+
+    sentBytes += chunk.byteLength;
+
+    options?.onProgress?.(
+      sentBytes,
+      file.size
+    );
     console.log(
       `📤 Chunk ${index + 1}/${totalChunks}`
     );

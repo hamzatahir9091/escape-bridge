@@ -14,28 +14,41 @@ export default function Home() {
   const myRole = useRef<"HOST" | "GUEST" | null>(null);
   const peerId = useRef<string | null>(null);
   const dataChannel = useRef<RTCDataChannel | null>(null);
+  const pendingCandidates = useRef<RTCIceCandidateInit[]>([]);                // state to store the ice candidates if the offer-answer cyclis still in process
+  const roomPendingCandidates = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
 
   const roomPeers = useRef<Map<string, RTCPeerConnection>>(new Map());
   const roomDataChannels = useRef<Map<string, RTCDataChannel>>(new Map());
 
-  const incomingFile = useRef<{
-    transferId: string;
-    data: ArrayBuffer[];
-    name: string;
-    size: number;
-    mimeType: string;
-    totalChunks: number;
-    chunkSize: number;
-    receivedChunks: number;
-    startTime: number;
-  } | null>(null);
+  const incomingFiles = useRef<
+    Map<
+      string,
+      {
+        transferId: string;
+        data: ArrayBuffer[];
+        name: string;
+        size: number;
+        mimeType: string;
+        totalChunks: number;
+        chunkSize: number;
+        receivedChunks: number;
+        startTime: number;
+      }
+    >
+  >(new Map());
+
+  const roomPeerTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(
+    new Map()
+  );
+  const messageTimers = useRef<
+    Map<string, ReturnType<typeof setTimeout>>
+  >(new Map());
 
   const [connected, setConnected] = useState(false);
   const [message, setMessage] = useState("");                                 // state for current message
   const [receivedMessages, setReceivedMessages] = useState<string[]>([]);     // state for storing chat messages
   const [dataChannelOpen, setDataChannelOpen] = useState(false);              // state for kkeping track of connection
   const [sessionCode, setSessionCode] = useState("");                         // usestate for storing the code from next browser
-  const pendingCandidates = useRef<RTCIceCandidateInit[]>([]);                // state to store the ice candidates if the offer-answer cyclis still in process
   const [selectedFile, setSelectedFile] = useState<File | null>(null)         // state for storing the current file
   const [roomCode, setRoomCode] = useState<string>("")
   const [roomDevices, setRoomDevices] = useState<
@@ -47,6 +60,12 @@ export default function Home() {
     }[]
   >([]);
   const [roomPeerStatus, setRoomPeerStatus] = useState<Record<string, boolean>>({});
+
+
+
+  const [activeTab, setActiveTab] = useState('room');
+  const [deviceMessages, setDeviceMessages] = useState<Record<string, string>>({});
+
 
 
   useEffect(() => {
@@ -125,10 +144,154 @@ export default function Home() {
               },
               (message) => {
                 if (typeof message === "string") {
-                  setReceivedMessages((prev) => [...prev, message]);
+                  const data = JSON.parse(message);
+
+                  // -------------------------
+                  // FILE START
+                  // -------------------------
+
+                  if (data.type === "FILE_START") {
+                    const transferId = data.payload.transferId;
+
+                    incomingFiles.current.set(peerId.current!, {
+                      transferId,
+                      data: [],
+                      name: data.payload.name,
+                      size: data.payload.size,
+                      mimeType: data.payload.mimeType,
+                      totalChunks: data.payload.totalChunks,
+                      chunkSize: data.payload.chunkSize,
+                      receivedChunks: 0,
+                      startTime: performance.now(),
+                    });
+
+                    console.log(
+                      `📥 Receiving ${data.payload.name}`
+                    );
+
+                    return;
+                  }
+
+                  // -------------------------
+                  // FILE END
+                  // -------------------------
+
+                  if (data.type === "FILE_END") {
+                    const transferId = data.payload.transferId;
+
+                    const transfer =
+                      incomingFiles.current.get(peerId.current!);
+
+                    if (!transfer) {
+                      console.error(
+                        "Received FILE_END without FILE_START"
+                      );
+                      return;
+                    }
+
+                    if (transfer.transferId !== transferId) {
+                      console.error("Transfer ID mismatch");
+                      return;
+                    }
+
+                    if (
+                      transfer.receivedChunks !==
+                      transfer.totalChunks
+                    ) {
+                      console.error(
+                        `Missing chunks: ${transfer.receivedChunks}/${transfer.totalChunks}`
+                      );
+                      return;
+                    }
+
+                    const endTime = performance.now();
+
+                    const seconds = (
+                      (endTime - transfer.startTime) /
+                      1000
+                    ).toFixed(2);
+
+                    const blob = new Blob(
+                      transfer.data,
+                      {
+                        type: transfer.mimeType,
+                      }
+                    );
+
+                    const url =
+                      URL.createObjectURL(blob);
+
+                    const link =
+                      document.createElement("a");
+
+                    link.href = url;
+                    link.download = transfer.name;
+
+                    link.click();
+
+                    URL.revokeObjectURL(url);
+
+                    console.log(
+                      `✅ Received ${transfer.name} in ${seconds}s`
+                    );
+
+                    setReceivedMessages((prev) => [
+                      ...prev,
+                      `📥 ${transfer.name} received in ${seconds}s`,
+                    ]);
+
+                    incomingFiles.current.delete(
+                      peerId.current!
+                    );
+
+                    return;
+                  }
+                  // -------------------------
+                  // CHAT MESSAGE
+                  // -------------------------
+
+                  if (data.type === "CHAT_MESSAGE") {
+                    setReceivedMessages((prev) => [
+                      ...prev,
+                      `Remote: ${data.payload.text}`,
+                    ]);
+
+                    return;
+                  }
+
+                  console.log(
+                    "Unknown DataChannel message:",
+                    data
+                  );
+
+                  return;
+
+                  return;
                 }
+
+                // -------------------------
+                // BINARY CHUNK
+                // -------------------------
+
                 if (message instanceof ArrayBuffer) {
-                  // handleIncomingFile(message);
+                  const transfer =
+                    incomingFiles.current.get(
+                      peerId.current!
+                    );
+
+                  if (!transfer) {
+                    console.error(
+                      "Received chunk but no active transfer exists"
+                    );
+                    return;
+                  }
+
+                  transfer.data.push(message);
+                  transfer.receivedChunks++;
+
+                  console.log(
+                    `📥 Chunk ${transfer.receivedChunks}/${transfer.totalChunks}`
+                  );
                 }
               }
             );
@@ -172,7 +335,7 @@ export default function Home() {
                   const data = JSON.parse(event.data)
 
                   if (data.type === "FILE_START") {
-                    incomingFile.current = {
+                    incomingFiles.current.set(data.payload.transferId, {
                       transferId: data.payload.transferId,
                       data: [],
                       name: data.payload.name,
@@ -182,7 +345,7 @@ export default function Home() {
                       chunkSize: data.payload.chunkSize,
                       receivedChunks: 0,
                       startTime: performance.now(),
-                    };
+                    });
                     console.log(
                       `📥 Receiving ${data.name}`
                     );
@@ -191,7 +354,7 @@ export default function Home() {
 
                   if (data.type === "FILE_END") {
 
-                    const transfer = incomingFile.current
+                    const transfer = incomingFiles.current.get(data.payload.transferId);
 
                     if (!transfer) {
                       console.error(
@@ -245,35 +408,52 @@ export default function Home() {
                       `✅ Received ${transfer.name}`
                     );
 
-                    incomingFile.current = null;
+                    incomingFiles.current.delete(data.payload.transferId);
+
+                    return;
+                  }
 
 
-
+                  if (data.type === "CHAT_MESSAGE") {
                     setReceivedMessages((prev) => [
                       ...prev,
-                      `📥 ${transfer.name} received in ${seconds}s`,
+                      `Remote: ${data.payload.text}`,
                     ]);
 
                     return;
                   }
 
-                  // Normal text message
+                  console.log(
+                    "Unknown DataChannel message:",
+                    data
+                  );
 
-                  setReceivedMessages((prev) => [
-                    ...prev,
-                    event.data,
-                  ]);
+                  return;
 
                   return;
                 }
 
                 if (event.data instanceof ArrayBuffer) {
-                  const transfer = incomingFile.current;
+                  console.log("📦 Binary chunk received");
+
+                  if (incomingFiles.current.size === 0) {
+                    console.error(
+                      "Received chunk but no active transfer exists"
+                    );
+                    return;
+                  }
+
+                  if (incomingFiles.current.size > 1) {
+                    console.error(
+                      "Multiple active transfers detected"
+                    );
+                    return;
+                  }
+
+                  const transfer =
+                    incomingFiles.current.values().next().value;
 
                   if (!transfer) {
-                    console.error(
-                      "Received chunk without FILE_START"
-                    );
                     return;
                   }
 
@@ -363,15 +543,72 @@ export default function Home() {
 
         case MessageType.ROOM_JOINED: {
           const code = data.payload.code;
-          setRoomCode(data.payload.code);
+
+          setRoomCode(code);
           setRoomDevices(data.payload.devices);
+
+          for (const device of data.payload.devices) {
+            if (
+              device.deviceId !== getDeviceID() &&
+              device.online
+            ) {
+              connectToRoomDevice(device);
+            }
+          }
+
           break;
         }
 
         case MessageType.ROOM_DEVICES_UPDATED: {
           console.log("Room devices updated");
 
+          const devices = data.payload.devices;
+
           setRoomDevices(data.payload.devices);
+
+          for (const device of devices) {
+            if (device.online) {
+              continue;
+            }
+
+            const deviceId = device.deviceId;
+
+            // Close old peer
+            const peer = roomPeers.current.get(deviceId);
+
+            if (peer) {
+              peer.close();
+              roomPeers.current.delete(deviceId);
+
+              console.log(
+                `🧹 Removed stale peer → ${deviceId}`
+              );
+            }
+
+            // Close old DataChannel
+            const channel =
+              roomDataChannels.current.get(deviceId);
+
+            if (channel) {
+              channel.close();
+              roomDataChannels.current.delete(deviceId);
+
+              console.log(
+                `🧹 Removed stale DataChannel → ${deviceId}`
+              );
+            }
+
+            // Remove pending ICE candidates
+            roomPendingCandidates.current.delete(deviceId);
+
+            // Remove connection status
+            setRoomPeerStatus((prev) => {
+              const updated = { ...prev };
+              delete updated[deviceId];
+              return updated;
+            });
+          }
+
 
           break;
         }
@@ -436,6 +673,8 @@ export default function Home() {
               console.log(
                 `🟢 Room DataChannel OPEN → ${senderDeviceId}`
               );
+
+              resetRoomPeerTimer(senderDeviceId);
             };
 
             channel.onclose = () => {
@@ -446,7 +685,12 @@ export default function Home() {
 
             channel.binaryType = "arraybuffer";
 
-            channel.onmessage = handleIncomingFileMessage;
+            channel.onmessage = (event) => {
+              handleIncomingFileMessage(
+                senderDeviceId,
+                event
+              );
+            };
           };
 
           await setRemoteOffer(
@@ -456,6 +700,11 @@ export default function Home() {
 
           console.log(
             `✅ Room OFFER applied from ${senderDeviceId}`
+          );
+
+          await processRoomPendingCandidates(
+            senderDeviceId,
+            peer
           );
 
           const answer = await createAnswer(peer);
@@ -480,9 +729,11 @@ export default function Home() {
         }
 
         case MessageType.ROOM_ANSWER: {
-          const deviceId = data.payload.senderDeviceId;
+          const deviceId =
+            data.payload.senderDeviceId;
 
-          const peer = roomPeers.current.get(deviceId);
+          const peer =
+            roomPeers.current.get(deviceId);
 
           if (!peer) {
             console.log(
@@ -502,25 +753,73 @@ export default function Home() {
             deviceId
           );
 
+          // Apply ICE candidates that arrived before the answer
+          await processRoomPendingCandidates(
+            deviceId,
+            peer
+          );
+
           break;
         }
 
         case MessageType.ROOM_ICE_CANDIDATE: {
-          const senderDeviceId = data.payload.senderDeviceId;
+          const senderDeviceId =
+            data.payload.senderDeviceId;
 
-          const peer = roomPeers.current.get(senderDeviceId);
+          const candidate =
+            data.payload.candidate;
 
+          const peer =
+            roomPeers.current.get(senderDeviceId);
+
+          // Peer doesn't exist yet
           if (!peer) {
             console.log(
-              "Room peer not found for ICE candidate:",
+              "⏳ Room peer not created yet. Queueing ICE candidate:",
               senderDeviceId
             );
+
+            const existing =
+              roomPendingCandidates.current.get(
+                senderDeviceId
+              ) ?? [];
+
+            existing.push(candidate);
+
+            roomPendingCandidates.current.set(
+              senderDeviceId,
+              existing
+            );
+
             break;
           }
 
+          // Peer exists but remote description isn't ready yet
+          if (!peer.remoteDescription) {
+            console.log(
+              "⏳ Remote description not ready. Queueing ICE candidate:",
+              senderDeviceId
+            );
+
+            const existing =
+              roomPendingCandidates.current.get(
+                senderDeviceId
+              ) ?? [];
+
+            existing.push(candidate);
+
+            roomPendingCandidates.current.set(
+              senderDeviceId,
+              existing
+            );
+
+            break;
+          }
+
+          // Everything is ready
           await addIceCandidate(
             peer,
-            data.payload.candidate
+            candidate
           );
 
           console.log(
@@ -530,7 +829,6 @@ export default function Home() {
 
           break;
         }
-
         default: {
           console.log("Unknown message:", data.type);
         }
@@ -561,7 +859,12 @@ export default function Home() {
       return;
     }
 
-    dataChannel.current.send(message);
+    const payload = JSON.stringify({
+      type: "CHAT_MESSAGE",
+      payload: message
+    });
+
+    dataChannel.current.send(payload);
 
     setReceivedMessages((prev) => [
       ...prev,
@@ -605,6 +908,28 @@ export default function Home() {
     }
   };
 
+  const processRoomPendingCandidates = async (
+    deviceId: string,
+    peer: RTCPeerConnection
+  ) => {
+    const candidates =
+      roomPendingCandidates.current.get(deviceId);
+
+    if (!candidates || candidates.length === 0) {
+      return;
+    }
+
+    console.log(
+      `Processing ${candidates.length} queued ICE candidates for ${deviceId}`
+    );
+
+    for (const candidate of candidates) {
+      await addIceCandidate(peer, candidate);
+    }
+
+    roomPendingCandidates.current.delete(deviceId);
+  };
+
   const createRoom = () => {
     console.log('create room function ran')
     socket.current?.send(
@@ -642,10 +967,6 @@ export default function Home() {
       isHost: boolean;
     }
   ) => {
-    if (!roomCode) {
-      console.log("No room code");
-      return;
-    }
 
     if (!device.online) {
       return;
@@ -698,15 +1019,28 @@ export default function Home() {
 
     const channel = peer.createDataChannel("bridge-room");
 
+    channel.binaryType = "arraybuffer";
+
     channel.onopen = () => {
       console.log(
         `🟢 Room DataChannel OPEN → ${device.deviceName}`
       );
+
+      resetRoomPeerTimer(device.deviceId);
     };
 
     channel.onclose = () => {
       console.log(
         `🔴 Room DataChannel CLOSED → ${device.deviceName}`
+      );
+    };
+
+    channel.binaryType = "arraybuffer";
+
+    channel.onmessage = (event) => {
+      handleIncomingFileMessage(
+        device.deviceId,
+        event
       );
     };
 
@@ -734,10 +1068,64 @@ export default function Home() {
 
   };
 
+  const ensureRoomConnection = async (
+    device: {
+      deviceId: string;
+      deviceName: string;
+      online: boolean;
+      isHost: boolean;
+    }
+  ) => {
+    // Device is offline — nothing to connect to
+    if (!device.online) {
+      return null;
+    }
+
+    // Already connected
+    const existingChannel =
+      roomDataChannels.current.get(device.deviceId);
+
+    if (existingChannel?.readyState === "open") {
+      console.log(
+        `🟢 Connection already open → ${device.deviceName}`
+      );
+
+      return existingChannel;
+    }
+
+    // Connection is currently being established
+    if (roomPeers.current.has(device.deviceId)) {
+      console.log(
+        `⏳ Connection already being established → ${device.deviceName}`
+      );
+
+      return null;
+    }
+
+    // No connection exists → create one
+    console.log(
+      `🔗 Connection needed → ${device.deviceName}`
+    );
+
+    await connectToRoomDevice(device);
+
+    return null;
+  };
+
 
   const disconnectFromRoomDevice = (
     deviceId: string
   ) => {
+
+
+
+    const timer = roomPeerTimers.current.get(deviceId);
+
+    if (timer) {
+      clearTimeout(timer);
+      roomPeerTimers.current.delete(deviceId);
+    }
+
     const peer = roomPeers.current.get(deviceId);
 
     if (peer) {
@@ -753,6 +1141,10 @@ export default function Home() {
       roomDataChannels.current.delete(deviceId);
     }
 
+    roomPendingCandidates.current.delete(
+      deviceId
+    );
+
     setRoomPeerStatus((prev) => {
       const updated = { ...prev };
       delete updated[deviceId];
@@ -764,28 +1156,76 @@ export default function Home() {
     );
   };
 
+  const resetRoomPeerTimer = (deviceId: string) => {
+    // Clear the old timer
+    const oldTimer = roomPeerTimers.current.get(deviceId);
+
+    if (oldTimer) {
+      clearTimeout(oldTimer);
+    }
+
+    // Start a fresh 5-minute timer
+    const timer = setTimeout(() => {
+      console.log(
+        `⏰ Room peer inactive for 5 minutes → ${deviceId}`
+      );
+
+      disconnectFromRoomDevice(deviceId);
+    }, 5 * 60 * 1000);
+
+    roomPeerTimers.current.set(deviceId, timer);
+  };
+
   const sendFileToRoomDevice = async (
     deviceId: string,
     file: File
   ) => {
-    const channel = roomDataChannels.current.get(deviceId);
+
+    resetRoomPeerTimer(deviceId);
+
+
+    const channel =
+      roomDataChannels.current.get(deviceId);
 
     if (!channel) {
-      console.log("No DataChannel for this device");
+      console.log(
+        "No DataChannel for this device"
+      );
       return;
     }
 
     if (channel.readyState !== "open") {
-      console.log("Room DataChannel isn't open");
+      console.log(
+        "Room DataChannel isn't open"
+      );
       return;
     }
 
     try {
-      await sendFile(channel, file);
+      await sendFile(
+        channel,
+        file,
+        {
+          onProgress: (
+            sentBytes,
+            totalBytes
+          ) => {
+            const percentage =
+              Math.round(
+                (sentBytes / totalBytes) * 100
+              );
+
+            console.log(
+              `📤 ${deviceId}: ${percentage}%`
+            );
+          },
+        }
+      );
 
       console.log(
         `✅ File sent → ${deviceId}`
       );
+
     } catch (error) {
       console.error(
         "❌ Room file transfer failed:",
@@ -794,15 +1234,66 @@ export default function Home() {
     }
   };
 
+  const sendRoomMessage = async (
+    device: {
+      deviceId: string;
+      deviceName: string;
+      online: boolean;
+      isHost: boolean;
+    },
+    text: string
+  ) => {
+    if (!text.trim()) {
+      return;
+    }
+
+    const channel = await ensureRoomConnection(device);
+
+    if (!channel || channel.readyState !== "open") {
+      console.log(
+        `⏳ Waiting for connection before sending → ${device.deviceName}`
+      );
+      return;
+    }
+
+    resetRoomPeerTimer(device.deviceId);
+
+    const messagePayload = JSON.stringify({
+      type: "CHAT_MESSAGE",
+      payload: {
+        text,
+      },
+    });
+
+    channel.send(messagePayload);
+
+    console.log(
+      `📤 Message sent → ${device.deviceName}: ${text}`
+    );
+  };
+
   const handleIncomingFileMessage = (
+    senderDeviceId: string,
     event: MessageEvent
   ) => {
+
+    resetRoomPeerTimer(senderDeviceId);
+    // =========================
+    // STRING MESSAGE
+    // =========================
+
     if (typeof event.data === "string") {
       const data = JSON.parse(event.data);
 
+      // -------------------------
+      // FILE START
+      // -------------------------
+
       if (data.type === "FILE_START") {
-        incomingFile.current = {
-          transferId: data.payload.transferId,
+        const transferId = data.payload.transferId;
+
+        incomingFiles.current.set(senderDeviceId, {
+          transferId,
           data: [],
           name: data.payload.name,
           size: data.payload.size,
@@ -811,30 +1302,28 @@ export default function Home() {
           chunkSize: data.payload.chunkSize,
           receivedChunks: 0,
           startTime: performance.now(),
-        };
+        });
 
         console.log(
-          `📥 Receiving ${data.payload.name}`
-        );
+          `📥 Receiving ${data.payload.name} from ${senderDeviceId}`);
 
         return;
       }
 
+      // -------------------------
+      // FILE END
+      // -------------------------
+
       if (data.type === "FILE_END") {
-        const transfer = incomingFile.current;
+        const transferId = data.payload.transferId;
+
+        const transfer =
+          incomingFiles.current.get(senderDeviceId);
 
         if (!transfer) {
           console.error(
             "Received FILE_END without FILE_START"
           );
-          return;
-        }
-
-        if (
-          data.payload.transferId !==
-          transfer.transferId
-        ) {
-          console.error("Transfer ID mismatch");
           return;
         }
 
@@ -857,12 +1346,16 @@ export default function Home() {
 
         const blob = new Blob(
           transfer.data,
-          { type: transfer.mimeType }
+          {
+            type: transfer.mimeType,
+          }
         );
 
-        const url = URL.createObjectURL(blob);
+        const url =
+          URL.createObjectURL(blob);
 
-        const link = document.createElement("a");
+        const link =
+          document.createElement("a");
 
         link.href = url;
         link.download = transfer.name;
@@ -880,7 +1373,29 @@ export default function Home() {
           `📥 ${transfer.name} received in ${seconds}s`,
         ]);
 
-        incomingFile.current = null;
+        // IMPORTANT:
+        // Remove ONLY this transfer.
+        incomingFiles.current.delete(
+          senderDeviceId
+        );
+
+        return;
+      }
+
+
+      if (data.type === "CHAT_MESSAGE") {
+        const device = roomDevices.find(
+          (d) => d.deviceId === senderDeviceId
+        );
+
+        const name = device
+          ? device.deviceName
+          : "Remote";
+
+        setReceivedMessages((prev) => [
+          ...prev,
+          `${name}: ${data.payload.text}`,
+        ]);
 
         return;
       }
@@ -888,12 +1403,21 @@ export default function Home() {
       return;
     }
 
+    // =========================
+    // BINARY CHUNK
+    // =========================
+
     if (event.data instanceof ArrayBuffer) {
-      const transfer = incomingFile.current;
+      console.log(
+        `📦 Binary chunk received from ${senderDeviceId}`
+      );
+
+      const transfer =
+        incomingFiles.current.get(senderDeviceId);
 
       if (!transfer) {
         console.error(
-          "Received chunk without FILE_START"
+          `Received chunk from ${senderDeviceId}, but no active transfer exists`
         );
         return;
       }
@@ -902,505 +1426,433 @@ export default function Home() {
       transfer.receivedChunks++;
 
       console.log(
-        `📥 Chunk ${transfer.receivedChunks}/${transfer.totalChunks}`
+        `📥 ${senderDeviceId}: Chunk ${transfer.receivedChunks}/${transfer.totalChunks}`
       );
     }
   };
 
-
-  // return (
-  //   <main style={{
-  //     maxWidth: '600px',
-  //     margin: '40px auto',
-  //     fontFamily: 'system-ui, sans-serif',
-  //     color: '#333',
-  //     backgroundColor: '#a49c9c',
-  //     padding: '30px',
-  //     borderRadius: '16px',
-  //     boxShadow: '0 10px 25px rgba(0,0,0,0.05)'
-  //   }}>
-  //     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-  //       <h1 style={{ margin: 0, fontSize: '24px', fontWeight: '800', letterSpacing: '-0.5px' }}>Bridge v0</h1>
-  //       <div style={{
-  //         padding: '6px 12px',
-  //         borderRadius: '20px',
-  //         fontSize: '12px',
-  //         fontWeight: '600',
-  //         backgroundColor: dataChannelOpen ? '#e6fffa' : '#fff5f5',
-  //         color: dataChannelOpen ? '#2c7a7b' : '#c53030',
-  //         border: `1px solid ${dataChannelOpen ? '#b2f5ea' : '#feb2b2'}`
-  //       }}>
-  //         {dataChannelOpen ? "🟢 P2P Connected" : "🔴 P2P Disconnected"}
-  //       </div>
-  //     </div>
-
-
-  //     {/* Section: Session Management */}
-  //     <div style={{ marginBottom: '24px', padding: '20px', backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #eee' }}>
-  //       <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '8px', color: '#666', textTransform: 'uppercase' }}>Step 2: Create or Join Session</label>
-  //       <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-  //         <button
-  //           onClick={createSession}
-  //           style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0', backgroundColor: 'white', fontWeight: '600', cursor: 'pointer' }}
-  //         >
-  //           Create Session
-  //         </button>
-  //       </div>
-  //       <div style={{ display: 'flex', gap: '8px' }}>
-  //         <input
-  //           value={sessionCode}
-  //           onChange={(e) => setSessionCode(e.target.value)}
-  //           placeholder="Enter Session Code"
-  //           style={{ flex: 2, padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0', outline: 'none' }}
-  //         />
-  //         <button
-  //           onClick={joinSession}
-  //           style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', backgroundColor: '#3182ce', color: 'white', fontWeight: '600', cursor: 'pointer' }}
-  //         >
-  //           Join Session
-  //         </button>
-  //       </div>
-  //     </div>
-
-  //     {/* Section: P2P Transfer */}
-  //     <div style={{
-  //       marginBottom: '24px',
-  //       padding: '20px',
-  //       backgroundColor: '#fff',
-  //       borderRadius: '12px',
-  //       border: '1px solid #eee',
-  //     }}>
-  //       <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '8px', color: '#666', textTransform: 'uppercase' }}>Step 3: Direct Transfer</label>
-
-  //       {/* File Input Group */}
-  //       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
-  //         <input
-  //           type="file"
-  //           onChange={(e) => {
-  //             const file = e.target.files?.[0] ?? null;
-  //             setSelectedFile(file);
-  //           }}
-  //           style={{ fontSize: '14px' }}
-  //         />
-  //         <button
-  //           onClick={async () => {
-  //             if (!selectedFile) {
-  //               console.log("No file selected");
-  //               return;
-  //             }
-  //             if (!dataChannel.current) {
-  //               console.log("DataChannel doesn't exist");
-  //               return;
-  //             }
-  //             try {
-  //               await sendFile(dataChannel.current, selectedFile);
-  //               console.log("File transfer complete");
-  //             } catch (error) {
-  //               console.error("File transfer failed:", error);
-  //             }
-  //           }}
-  //           disabled={!dataChannelOpen || !selectedFile}
-  //           style={{
-  //             padding: '12px',
-  //             borderRadius: '8px',
-  //             border: 'none',
-  //             backgroundColor: '#38a169',
-  //             color: 'white',
-  //             fontWeight: '600',
-  //             cursor: (!dataChannelOpen || !selectedFile) ? 'not-allowed' : 'pointer'
-  //           }}
-  //         >
-  //           Send File Directly
-  //         </button>
-  //       </div>
-
-  //       {/* Message Input Group */}
-  //       <div style={{ display: 'flex', gap: '8px' }}>
-  //         <input
-  //           value={message}
-  //           onChange={(e) => setMessage(e.target.value)}
-  //           placeholder="Type a message..."
-  //           style={{ flex: 2, padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0', outline: 'none' }}
-  //         />
-  //         <button
-  //           onClick={sendDataChannelMessage}
-  //           disabled={!dataChannelOpen}
-  //           style={{
-  //             flex: 1,
-  //             padding: '10px',
-  //             borderRadius: '8px',
-  //             border: 'none',
-  //             backgroundColor: '#805ad5',
-  //             color: 'white',
-  //             fontWeight: '600',
-  //             cursor: !dataChannelOpen ? 'not-allowed' : 'pointer'
-  //           }}
-  //         >
-  //           Send P2P
-  //         </button>
-  //       </div>
-  //     </div>
-
-  //     {/* Section: Chat Log */}
-  //     <div style={{ marginTop: '30px' }}>
-  //       <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '8px', color: '#666', textTransform: 'uppercase' }}>Activity Log</label>
-  //       <div style={{
-  //         height: '150px',
-  //         overflowY: 'auto',
-  //         backgroundColor: '#f1f5f9',
-  //         padding: '15px',
-  //         borderRadius: '12px',
-  //         fontSize: '14px',
-  //         lineHeight: '1.6',
-  //         border: '1px solid #e2e8f0'
-  //       }}>
-  //         {receivedMessages.length === 0 && <span style={{ color: '#94a3b8' }}>No activity yet...</span>}
-  //         {receivedMessages.map((msg, index) => (
-  //           <div key={index} style={{
-  //             marginBottom: '6px',
-  //             paddingBottom: '6px',
-  //             borderBottom: '1px solid #e2e8f0',
-  //             color: msg.startsWith('You:') ? '#4a5568' : '#2d3748',
-  //             fontWeight: msg.startsWith('You:') ? '400' : '600'
-  //           }}>
-  //             {msg}
-  //           </div>
-  //         ))}
-  //       </div>
-  //     </div>
-
-  //     <hr />
-
-  //     <h2>Device Room</h2>
-
-  //     <button onClick={createRoom}>
-  //       Create Room
-  //     </button>
-
-  //     <br />
-  //     <br />
-
-  //     <input
-  //       value={roomCode}
-  //       onChange={(e) => setRoomCode(e.target.value)}
-  //       placeholder="Room Code"
-  //     />
-
-  //     <button onClick={joinRoom}>
-  //       Join Room
-  //     </button>
-
-  //     <br />
-  //     <br />
-  //     {/* {roomDevices.map((device) => (
-  //       <p key={device.deviceId}>
-  //         {device.online ? "🟢" : "🔴"}{" "}
-  //         {device.deviceName}
-
-  //         {device.isHost && " 👑 HOST"}
-
-  //         {device.online &&
-  //           roomPeerStatus[device.deviceId] && (
-  //             <> — 🔗 P2P Connected</>
-  //           )}
-  //       </p>
-        
-  //     ))} */}
-  //     {roomDevices.map((device) => (
-  //       <div key={device.deviceId}>
-  //         <p>
-  //           {device.online ? "🟢" : "🔴"}{" "}
-  //           {device.deviceName}
-
-  //           {device.isHost && " 👑 HOST"}
-  //         </p>
-  //         {device.deviceId !== getDeviceID() && device.online && (
-  //           roomPeerStatus[device.deviceId] ? (
-  //             <button
-  //               onClick={() =>
-  //                 disconnectFromRoomDevice(device.deviceId)
-  //               }
-  //             >
-  //               Disconnect
-  //             </button>
-  //           ) : (
-  //             <button
-  //               onClick={() =>
-  //                 connectToRoomDevice(device)
-  //               }
-  //             >
-  //               Connect
-  //             </button>
-  //           )
-  //         )}
-
-  //         {device.deviceId !== getDeviceID() &&
-  //           device.online &&
-  //           roomPeerStatus[device.deviceId] && (
-  //             <button
-  //               onClick={() => {
-  //                 if (!selectedFile) {
-  //                   console.log("No file selected");
-  //                   return;
-  //                 }
-
-  //                 sendFileToRoomDevice(
-  //                   device.deviceId,
-  //                   selectedFile
-  //                 );
-  //               }}
-  //             >
-  //               Send File
-  //             </button>
-  //           )}
-  //       </div>
-
-
-  //     ))}
-  //   </main>
-  // );
-
-return (
+  return (
     <main style={{
-      maxWidth: '700px',
+      maxWidth: '760px',
       margin: '40px auto',
       fontFamily: '"Inter", system-ui, -apple-system, sans-serif',
       color: '#e2e8f0',
-      backgroundColor: '#0f172a',
-      padding: '40px',
+      backgroundColor: '#090d16',
+      padding: '32px',
       borderRadius: '24px',
-      boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+      boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6)',
       border: '1px solid #1e293b'
     }}>
-      {/* Header & Connection Status */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: '28px', fontWeight: '800', letterSpacing: '-1px', color: '#f8fafc' }}>Bridge <span style={{ color: '#38bdf8' }}>v0</span></h1>
-          <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: '#94a3b8' }}>Secure Peer-to-Peer Transfer</p>
-        </div>
+      {/* Top Navigation Tabs */}
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '32px' }}>
         <div style={{
-          padding: '8px 16px',
-          borderRadius: '12px',
-          fontSize: '13px',
-          fontWeight: '600',
-          backgroundColor: dataChannelOpen ? 'rgba(16, 185, 129, 0.1)' : 'rgba(244, 63, 94, 0.1)',
-          color: dataChannelOpen ? '#10b981' : '#f43f5e',
-          border: `1px solid ${dataChannelOpen ? 'rgba(16, 185, 129, 0.2)' : 'rgba(244, 63, 94, 0.2)'}`,
           display: 'flex',
-          alignItems: 'center',
-          gap: '8px'
+          backgroundColor: '#0f172a',
+          padding: '4px',
+          borderRadius: '14px',
+          border: '1px solid #1e293b'
         }}>
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: dataChannelOpen ? '#10b981' : '#f43f5e' }}></span>
-          {dataChannelOpen ? "P2P Connected" : "P2P Disconnected"}
-        </div>
-      </div>
-
-      {/* Section: Session Management */}
-      <div style={{ marginBottom: '24px', padding: '24px', backgroundColor: '#1e293b', borderRadius: '16px', border: '1px solid #334155' }}>
-        <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', marginBottom: '16px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>1. Session Management</label>
-        
-        <button
-          onClick={createSession}
-          style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #334155', backgroundColor: 'transparent', color: '#f1f5f9', fontWeight: '600', cursor: 'pointer', marginBottom: '16px', transition: 'all 0.2s' }}
-        >
-          Create New Session
-        </button>
-
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <input
-            value={sessionCode}
-            onChange={(e) => setSessionCode(e.target.value)}
-            placeholder="Enter Session Code"
-            style={{ flex: 2, padding: '12px 16px', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#0f172a', color: '#f1f5f9', outline: 'none' }}
-          />
           <button
-            onClick={joinSession}
-            style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: '#3b82f6', color: 'white', fontWeight: '600', cursor: 'pointer' }}
-          >
-            Join
-          </button>
-        </div>
-      </div>
-
-      {/* Section: P2P Transfer */}
-      <div style={{ marginBottom: '24px', padding: '24px', backgroundColor: '#1e293b', borderRadius: '16px', border: '1px solid #334155' }}>
-        <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', marginBottom: '16px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>2. Direct Transfer</label>
-
-        {/* File Input Group */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
-          <div style={{ position: 'relative', border: '2px dashed #334155', borderRadius: '12px', padding: '20px', textAlign: 'center', backgroundColor: '#0f172a' }}>
-            <input
-              type="file"
-              onChange={(e) => {
-                const file = e.target.files?.[0] ?? null;
-                setSelectedFile(file);
-              }}
-              style={{ fontSize: '14px', color: '#94a3b8', width: '100%' }}
-            />
-          </div>
-          
-          <button
-            onClick={async () => {
-              if (!selectedFile) return;
-              if (!dataChannel.current) return;
-              try {
-                await sendFile(dataChannel.current, selectedFile);
-              } catch (error) {
-                console.error("File transfer failed:", error);
-              }
-            }}
-            disabled={!dataChannelOpen || !selectedFile}
+            onClick={() => setActiveTab('room')}
             style={{
-              padding: '14px',
+              padding: '10px 28px',
               borderRadius: '10px',
               border: 'none',
-              backgroundColor: (!dataChannelOpen || !selectedFile) ? '#1e293b' : '#059669',
-              color: (!dataChannelOpen || !selectedFile) ? '#475569' : 'white',
+              backgroundColor: activeTab === 'room' ? '#1e293b' : 'transparent',
+              color: activeTab === 'room' ? '#38bdf8' : '#64748b',
               fontWeight: '600',
-              cursor: (!dataChannelOpen || !selectedFile) ? 'not-allowed' : 'pointer',
-              transition: 'all 0.2s'
+              fontSize: '14px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              boxShadow: activeTab === 'room' ? '0 4px 12px rgba(0,0,0,0.2)' : 'none'
             }}
           >
-            Send File Directly
+            Room
           </button>
-        </div>
-
-        {/* Message Input Group */}
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <input
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="Type an encrypted message..."
-            style={{ flex: 2, padding: '12px 16px', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#0f172a', color: '#f1f5f9', outline: 'none' }}
-          />
           <button
-            onClick={sendDataChannelMessage}
-            disabled={!dataChannelOpen}
+            onClick={() => setActiveTab('p2p')}
             style={{
-              flex: 1,
-              padding: '12px',
+              padding: '10px 28px',
               borderRadius: '10px',
               border: 'none',
-              backgroundColor: !dataChannelOpen ? '#1e293b' : '#8b5cf6',
-              color: !dataChannelOpen ? '#475569' : 'white',
+              backgroundColor: activeTab === 'p2p' ? '#1e293b' : 'transparent',
+              color: activeTab === 'p2p' ? '#38bdf8' : '#64748b',
               fontWeight: '600',
-              cursor: !dataChannelOpen ? 'not-allowed' : 'pointer'
+              fontSize: '14px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              boxShadow: activeTab === 'p2p' ? '0 4px 12px rgba(0,0,0,0.2)' : 'none'
             }}
           >
-            Send P2P
+            P2P
           </button>
         </div>
       </div>
 
-      {/* Section: Activity Log */}
-      <div style={{ marginBottom: '32px' }}>
-        <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', marginBottom: '12px', color: '#64748b', textTransform: 'uppercase' }}>Activity Log</label>
-        <div style={{
-          height: '160px',
-          overflowY: 'auto',
-          backgroundColor: '#020617',
-          padding: '16px',
-          borderRadius: '12px',
-          fontSize: '13px',
-          lineHeight: '1.6',
-          border: '1px solid #1e293b',
-          fontFamily: '"Fira Code", monospace'
-        }}>
-          {receivedMessages.length === 0 && <span style={{ color: '#475569' }}>{">"} awaiting activity...</span>}
-          {receivedMessages.map((msg, index) => (
-            <div key={index} style={{
-              marginBottom: '8px',
-              paddingBottom: '8px',
-              borderBottom: '1px solid #0f172a',
-              color: msg.startsWith('You:') ? '#94a3b8' : '#38bdf8',
-            }}>
-              <span style={{ color: '#475569', marginRight: '8px' }}>[{new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}]</span>
-              {msg}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div style={{ height: '1px', backgroundColor: '#1e293b', margin: '40px 0' }} />
-
-      {/* Device Room Section */}
-      <div style={{ padding: '24px', backgroundColor: '#1e293b', borderRadius: '16px', border: '1px solid #334155' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '700', color: '#f8fafc' }}>Device Room</h2>
-          <button 
-            onClick={createRoom}
-            style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #334155', backgroundColor: '#0f172a', color: '#f1f5f9', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}
-          >
-            Create Room
-          </button>
-        </div>
-
-        <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
-          <input
-            value={roomCode}
-            onChange={(e) => setRoomCode(e.target.value)}
-            placeholder="Room Code"
-            style={{ flex: 2, padding: '12px 16px', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#0f172a', color: '#f1f5f9', outline: 'none' }}
-          />
-          <button
-            onClick={joinRoom}
-            style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: '#3b82f6', color: 'white', fontWeight: '600', cursor: 'pointer' }}
-          >
-            Join Room
-          </button>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {roomDevices.map((device) => (
-            <div key={device.deviceId} style={{
+      {/* Main Workspace */}
+      <div>
+        {activeTab === 'room' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {/* Room Controls & Global File Bar */}
+            <div style={{
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '16px',
+              flexDirection: 'column',
+              gap: '16px',
+              padding: '20px',
               backgroundColor: '#0f172a',
-              borderRadius: '12px',
-              border: '1px solid #334155'
+              borderRadius: '16px',
+              border: '1px solid #1e293b'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: '10px' }}>{device.online ? "🟢" : "🔴"}</span>
-                <span style={{ fontWeight: '600', color: '#f1f5f9' }}>{device.deviceName}</span>
-                {device.isHost && <span style={{ fontSize: '10px', backgroundColor: '#f59e0b', color: '#000', padding: '2px 6px', borderRadius: '4px', fontWeight: '800' }}>HOST</span>}
+              {/* Room Connect / Create Bar */}
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <input
+                  value={roomCode}
+                  onChange={(e) => setRoomCode(e.target.value)}
+                  placeholder="Enter Room Code"
+                  style={{
+                    flex: 1,
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    border: '1px solid #1e293b',
+                    backgroundColor: '#090d16',
+                    color: '#f8fafc',
+                    fontSize: '13px',
+                    outline: 'none'
+                  }}
+                />
+                <button
+                  onClick={joinRoom}
+                  style={{
+                    padding: '10px 18px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    backgroundColor: '#2563eb',
+                    color: 'white',
+                    fontWeight: '600',
+                    fontSize: '13px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Join Room
+                </button>
+                <button
+                  onClick={createRoom}
+                  style={{
+                    padding: '10px 18px',
+                    borderRadius: '10px',
+                    border: '1px solid #334155',
+                    backgroundColor: 'transparent',
+                    color: '#f8fafc',
+                    fontWeight: '600',
+                    fontSize: '13px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Create
+                </button>
               </div>
 
-              <div style={{ display: 'flex', gap: '8px' }}>
-                {device.deviceId !== getDeviceID() && device.online && (
-                  roomPeerStatus[device.deviceId] ? (
-                    <>
-                      <button
-                        onClick={() => disconnectFromRoomDevice(device.deviceId)}
-                        style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #f43f5e', backgroundColor: 'transparent', color: '#f43f5e', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}
-                      >
-                        Disconnect
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (!selectedFile) return;
-                          sendFileToRoomDevice(device.deviceId, selectedFile);
-                        }}
-                        style={{ padding: '6px 12px', borderRadius: '6px', border: 'none', backgroundColor: '#059669', color: 'white', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}
-                      >
-                        Send File
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      onClick={() => connectToRoomDevice(device)}
-                      style={{ padding: '6px 12px', borderRadius: '6px', border: 'none', backgroundColor: '#3b82f6', color: 'white', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}
-                    >
-                      Connect
-                    </button>
-                  )
-                )}
+              {/* Global Selected File Bar */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '10px 14px',
+                backgroundColor: '#090d16',
+                borderRadius: '10px',
+                border: '1px dashed #334155'
+              }}>
+                <span style={{ fontSize: '13px', color: '#94a3b8' }}>
+                  {selectedFile ? `Selected: ${selectedFile.name}` : "No global file selected"}
+                </span>
+                <input
+                  type="file"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] ?? null;
+                    setSelectedFile(file);
+                  }}
+                  style={{ fontSize: '12px', color: '#94a3b8' }}
+                />
               </div>
             </div>
-          ))}
-        </div>
+
+            {/* Devices Grid / List */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
+              {roomDevices.length === 0 && (
+                <div style={{
+                  gridColumn: '1 / -1',
+                  textAlign: 'center',
+                  padding: '40px 20px',
+                  backgroundColor: '#0f172a',
+                  borderRadius: '16px',
+                  border: '1px solid #1e293b',
+                  color: '#64748b',
+                  fontSize: '14px'
+                }}>
+                  No devices connected to this room yet.
+                </div>
+              )}
+
+              {roomDevices.map((device) => {
+                const isCurrentDevice = device.deviceId === getDeviceID();
+                const isConnected = roomPeerStatus[device.deviceId];
+
+                return (
+                  <div
+                    key={device.deviceId}
+                    style={{
+                      padding: '20px',
+                      backgroundColor: '#0f172a',
+                      borderRadius: '16px',
+                      border: isConnected ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid #1e293b',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '16px',
+                      boxShadow: isConnected ? '0 0 15px rgba(56, 189, 248, 0.05)' : 'none'
+                    }}
+                  >
+                    {/* Device Header */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{
+                            width: '8px',
+                            height: '8px',
+                            borderRadius: '50%',
+                            backgroundColor: device.online ? '#10b981' : '#f43f5e'
+                          }} />
+                          <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#f8fafc' }}>
+                            {device.deviceName}
+                          </h3>
+                        </div>
+                        <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
+                          {device.isHost && (
+                            <span style={{ fontSize: '10px', backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>
+                              HOST
+                            </span>
+                          )}
+                          {isCurrentDevice && (
+                            <span style={{ fontSize: '10px', backgroundColor: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>
+                              YOU
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Connection State / Button */}
+                      {!isCurrentDevice && device.online && (
+                        isConnected ? (
+                          <button
+                            onClick={() => disconnectFromRoomDevice(device.deviceId)}
+                            style={{
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              border: '1px solid rgba(244, 63, 94, 0.3)',
+                              backgroundColor: 'rgba(244, 63, 94, 0.1)',
+                              color: '#f43f5e',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Disconnect
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => connectToRoomDevice(device)}
+                            style={{
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              border: 'none',
+                              backgroundColor: '#2563eb',
+                              color: 'white',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Connect
+                          </button>
+                        )
+                      )}
+                    </div>
+
+                    {/* Card Actions (Text & Send File) */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: 'auto' }}>
+                      <input
+                        placeholder={`Message to ${device.deviceName}...`}
+                        value={deviceMessages?.[device.deviceId] || ''}
+                        onFocus={() => {
+                          if (!isCurrentDevice && device.online) {
+                            const channel =
+                              roomDataChannels.current.get(device.deviceId);
+
+                            if (channel?.readyState === "open") {
+                              resetRoomPeerTimer(device.deviceId);
+                            }
+
+                            ensureRoomConnection(device);
+                          }
+                        }}
+                        onChange={(e) => {
+                          const value = e.target.value;
+
+                          setDeviceMessages((prev) => ({
+                            ...prev,
+                            [device.deviceId]: value,
+                          }));
+
+                          // Clear previous debounce timer
+                          const oldTimer =
+                            messageTimers.current.get(device.deviceId);
+
+                          if (oldTimer) {
+                            clearTimeout(oldTimer);
+                          }
+
+                          // Don't send empty input
+                          if (!value.trim()) {
+                            return;
+                          }
+
+                          const timer = setTimeout(() => {
+                            sendRoomMessage(device, value);
+
+                            // Clear the input after sending
+                            setDeviceMessages((prev) => ({
+                              ...prev,
+                              [device.deviceId]: "",
+                            }));
+
+                            messageTimers.current.delete(
+                              device.deviceId
+                            );
+                          }, 2000);
+
+                          messageTimers.current.set(
+                            device.deviceId,
+                            timer
+                          );
+                        }}
+
+                        style={{
+                          width: '100%',
+                          boxSizing: 'border-box',
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          border: '1px solid #1e293b',
+                          backgroundColor: '#090d16',
+                          color: '#f8fafc',
+                          fontSize: '12px',
+                          outline: 'none'
+                        }}
+                      />
+
+                      {!isCurrentDevice && device.online && isConnected && (
+                        <button
+                          onClick={() => {
+                            if (!selectedFile) {
+                              console.log("No file selected");
+                              return;
+                            }
+                            sendFileToRoomDevice(device.deviceId, selectedFile);
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '8px',
+                            borderRadius: '8px',
+                            border: 'none',
+                            backgroundColor: selectedFile ? '#059669' : '#1e293b',
+                            color: selectedFile ? '#ffffff' : '#64748b',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            cursor: selectedFile ? 'pointer' : 'not-allowed',
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          Send Selected File
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Room Messages */}
+            <div
+              style={{
+                padding: "20px",
+                backgroundColor: "#0f172a",
+                borderRadius: "16px",
+                border: "1px solid #1e293b",
+              }}
+            >
+              <h3
+                style={{
+                  margin: "0 0 12px",
+                  fontSize: "14px",
+                  color: "#f8fafc",
+                }}
+              >
+                Room Messages
+              </h3>
+
+              {receivedMessages.length === 0 ? (
+                <div
+                  style={{
+                    color: "#64748b",
+                    fontSize: "13px",
+                  }}
+                >
+                  No messages yet.
+                </div>
+              ) : (
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "8px",
+                  }}
+                >
+                  {receivedMessages.map((msg, index) => (
+                    <div
+                      key={index}
+                      style={{
+                        padding: "8px 12px",
+                        backgroundColor: "#090d16",
+                        borderRadius: "8px",
+                        color: "#cbd5e1",
+                        fontSize: "13px",
+                      }}
+                    >
+                      {msg}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* P2P Workspace (Blank as requested) */}
+        {activeTab === 'p2p' && (
+          <div style={{
+            minHeight: '260px',
+            backgroundColor: '#0f172a',
+            borderRadius: '16px',
+            border: '1px solid #1e293b'
+          }}>
+            {/* Blank P2P Div Container */}
+          </div>
+        )}
+
+
       </div>
+
+
+
     </main>
   );
+
 }

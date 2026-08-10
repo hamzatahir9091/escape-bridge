@@ -71,6 +71,8 @@ export default function Home() {
   useEffect(() => {
     console.log("App started , connection made!!!!!");
     connect()
+
+    console.log("Vercel test:", new Date().toISOString());
   }, []);
 
   // WHOLE IMPLEMENTATION IS BELOW

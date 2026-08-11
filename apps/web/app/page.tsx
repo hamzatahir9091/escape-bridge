@@ -72,7 +72,7 @@ export default function Home() {
     console.log("App started , connection made!!!!!");
     connect()
 
-    console.log("Vercel test:", new Date().toISOString());
+    console.log('navigator.userAgent', navigator.userAgent)
   }, []);
 
   // WHOLE IMPLEMENTATION IS BELOW
@@ -1595,7 +1595,8 @@ export default function Home() {
                 </div>
               )}
 
-              {roomDevices.map((device) => {
+              {roomDevices.filter((device) => device.deviceId !== getDeviceID())
+              .map((device) => {
                 const isCurrentDevice = device.deviceId === getDeviceID();
                 const isConnected = roomPeerStatus[device.deviceId];
 

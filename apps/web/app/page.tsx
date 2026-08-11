@@ -72,11 +72,60 @@ export default function Home() {
     console.log("App started , connection made!!!!!");
     connect()
 
-    console.log('navigator.userAgent', navigator.userAgent)
-    console.log('navigator.userAgent', navigator.userAgent)
+    const nav = navigator as any;
 
-    const about =  navigator.userAgent
-    window.alert(about)
+    const deviceInfo = {
+      "=== USER AGENT ===": nav.userAgent,
+
+      "=== USER AGENT DATA ===": nav.userAgentData
+        ? {
+          mobile: nav.userAgentData.mobile,
+          platform: nav.userAgentData.platform,
+          brands: nav.userAgentData.brands,
+        }
+        : "Not supported",
+
+      "=== PLATFORM ===": nav.platform,
+
+      "=== SCREEN ===": {
+        width: screen.width,
+        height: screen.height,
+        availWidth: screen.availWidth,
+        availHeight: screen.availHeight,
+        pixelRatio: devicePixelRatio,
+      },
+
+      "=== WINDOW ===": {
+        width: innerWidth,
+        height: innerHeight,
+      },
+
+      "=== TOUCH ===": {
+        maxTouchPoints: nav.maxTouchPoints,
+        hasTouch: "ontouchstart" in window,
+      },
+
+      "=== HARDWARE ===": {
+        cpuCores: nav.hardwareConcurrency,
+        memoryGB: nav.deviceMemory ?? "Not supported",
+      },
+
+      "=== CONNECTION ===": nav.connection
+        ? {
+          effectiveType: nav.connection.effectiveType,
+          downlink: nav.connection.downlink,
+          rtt: nav.connection.rtt,
+          saveData: nav.connection.saveData,
+        }
+        : "Not supported",
+
+      "=== BROWSER ===": {
+        cookiesEnabled: nav.cookieEnabled,
+        online: nav.onLine,
+      },
+    };
+
+    window.alert(JSON.stringify(deviceInfo, null, 2));
 
   }, []);
 

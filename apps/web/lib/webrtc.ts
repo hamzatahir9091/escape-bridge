@@ -47,17 +47,14 @@ export async function createAnswer(peer: RTCPeerConnection) {
   const answer = await peer.createAnswer()
   await peer.setLocalDescription(answer);
 
-  console.log("localDescription =", peer.localDescription);
   console.log("iceGatheringState =", peer.iceGatheringState);
 
   setTimeout(() => {
     console.log("After 2 seconds:", peer.iceGatheringState);
   }, 2000);
 
-  console.log("Local description set");
+  console.log("Local description set inside webrtc");
 
-  console.log("local desc answer :", peer.localDescription);
-  console.log("local desc answer (sdp) :", peer.localDescription?.sdp);
   return answer;
 }
 

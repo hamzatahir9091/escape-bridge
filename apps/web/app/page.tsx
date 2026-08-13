@@ -6,7 +6,22 @@ import { MessageType } from "@bridge/shared";
 
 // WEBRTC  imports
 import { addIceCandidate, createAnswer, createDataChannel, createOffer, createPeerConnection, sendFile, setRemoteAnswer, setRemoteOffer } from "../lib/webrtc";
-import { getDeviceID } from "../lib/device";
+import { getDeviceID, hasDeviceID, getDeviceName, setDeviceName, } from "../lib/device";
+
+import DeviceIcon from "../components/DeviceIcon";
+
+import BinaryBridgeBackground from "../components/BinaryBridgeBackground";
+import {
+  getLocalDeviceInfo,
+  type DeviceInfo,
+} from "../lib/deviceInfo";
+
+
+import {
+  createDeviceInfoMessage,
+  parseDeviceInfoMessage,
+} from "../lib/deviceExchange";
+import BinaryBridgeTowers from "../components/BinaryBridgeTowers";
 
 export default function Home() {
   const socket = useRef<WebSocket | null>(null);
@@ -40,9 +55,7 @@ export default function Home() {
   const roomPeerTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(
     new Map()
   );
-  const messageTimers = useRef<
-    Map<string, ReturnType<typeof setTimeout>>
-  >(new Map());
+
 
   const [connected, setConnected] = useState(false);
   const [message, setMessage] = useState("");                                 // state for current message
@@ -61,72 +74,39 @@ export default function Home() {
   >([]);
   const [roomPeerStatus, setRoomPeerStatus] = useState<Record<string, boolean>>({});
 
-
+  const [needsDeviceSetup, setNeedsDeviceSetup] = useState(false);
+  const [deviceName, setDeviceNameState] = useState("");
 
   const [activeTab, setActiveTab] = useState('room');
   const [deviceMessages, setDeviceMessages] = useState<Record<string, string>>({});
 
 
-  const [deviceInfo, setDeviceInfo] = useState<Record<string, any> | null>(null);
+  const [deviceInfo, setDeviceInfo] =
+    useState<DeviceInfo | null>(null);
+
+  const [remoteDeviceInfo, setRemoteDeviceInfo] =
+    useState<Record<string, DeviceInfo>>({});
+
   useEffect(() => {
-    console.log("App started, connection made!!!!!");
+    console.log("App started");
 
-    connect();
-
-    const nav = navigator as any;
-
-    const info: Record<string, any> = {
-      "=== USER AGENT ===": nav.userAgent,
-
-      "=== USER AGENT DATA ===": nav.userAgentData
-        ? {
-          mobile: nav.userAgentData.mobile,
-          platform: nav.userAgentData.platform,
-          brands: nav.userAgentData.brands,
-        }
-        : "Not supported",
-
-      "=== PLATFORM ===": nav.platform,
-
-      "=== SCREEN ===": {
-        width: window.screen.width,
-        height: window.screen.height,
-        availWidth: window.screen.availWidth,
-        availHeight: window.screen.availHeight,
-        pixelRatio: window.devicePixelRatio,
-      },
-
-      "=== WINDOW ===": {
-        width: window.innerWidth,
-        height: window.innerHeight,
-      },
-
-      "=== TOUCH ===": {
-        maxTouchPoints: nav.maxTouchPoints,
-        hasTouch: "ontouchstart" in window,
-      },
-
-      "=== HARDWARE ===": {
-        cpuCores: nav.hardwareConcurrency,
-        memoryGB: nav.deviceMemory ?? "Not supported",
-      },
-
-      "=== CONNECTION ===": nav.connection
-        ? {
-          effectiveType: nav.connection.effectiveType,
-          downlink: nav.connection.downlink,
-          rtt: nav.connection.rtt,
-          saveData: nav.connection.saveData,
-        }
-        : "Not supported",
-
-      "=== BROWSER ===": {
-        cookiesEnabled: nav.cookieEnabled,
-        online: nav.onLine,
-      },
-    };
+    const info = getLocalDeviceInfo();
 
     setDeviceInfo(info);
+
+
+    if (!hasDeviceID()) {
+      console.log("🆕 First visit — device setup required");
+
+      setDeviceNameState(info.deviceType);
+
+      setNeedsDeviceSetup(true);
+
+      return;
+    }
+
+    connect();
+    console.log('connection made , if didnt run')
   }, []);
 
   // WHOLE IMPLEMENTATION IS BELOW
@@ -141,13 +121,14 @@ export default function Home() {
       setConnected(true);
 
       const deviceId = getDeviceID();
+      const deviceName = getDeviceName()
 
       socket.current!.send(
         JSON.stringify({
           type: MessageType.DEVICE_REGISTER,
           payload: {
             deviceId,
-            deviceName: "My Device",
+            deviceName: deviceName,
           },
         })
       );
@@ -731,6 +712,18 @@ export default function Home() {
               );
 
               resetRoomPeerTimer(senderDeviceId);
+
+
+              const info = getLocalDeviceInfo();
+
+              channel.send(
+                createDeviceInfoMessage(info)
+              );
+
+              console.log(
+                `📱 Device info sent → ${senderDeviceId}`,
+                info
+              );
             };
 
             channel.onclose = () => {
@@ -742,6 +735,29 @@ export default function Home() {
             channel.binaryType = "arraybuffer";
 
             channel.onmessage = (event) => {
+
+
+              if (typeof event.data === "string") {
+                const deviceInfoMessage =
+                  parseDeviceInfoMessage(event.data);
+
+                if (deviceInfoMessage) {
+                  setRemoteDeviceInfo((prev) => ({
+                    ...prev,
+                    [senderDeviceId]:
+                      deviceInfoMessage.payload,
+                  }));
+
+                  console.log(
+                    `📱 Device info received ← ${senderDeviceId}`,
+                    deviceInfoMessage.payload
+                  );
+
+                  return;
+                }
+              }
+
+
               handleIncomingFileMessage(
                 senderDeviceId,
                 event
@@ -1083,6 +1099,18 @@ export default function Home() {
       );
 
       resetRoomPeerTimer(device.deviceId);
+
+
+      const info = getLocalDeviceInfo();
+
+      channel.send(
+        createDeviceInfoMessage(info)
+      );
+
+      console.log(
+        `📱 Device info sent → ${device.deviceId}`,
+        info
+      );
     };
 
     channel.onclose = () => {
@@ -1094,6 +1122,32 @@ export default function Home() {
     channel.binaryType = "arraybuffer";
 
     channel.onmessage = (event) => {
+
+
+
+      if (typeof event.data === "string") {
+        const deviceInfoMessage =
+          parseDeviceInfoMessage(event.data);
+
+        if (deviceInfoMessage) {
+          setRemoteDeviceInfo((prev) => ({
+            ...prev,
+            [device.deviceId]:
+              deviceInfoMessage.payload,
+          }));
+
+          console.log(
+            `📱 Device info received ← ${device.deviceId}`,
+            deviceInfoMessage.payload
+          );
+
+          return;
+        }
+      }
+
+
+
+
       handleIncomingFileMessage(
         device.deviceId,
         event
@@ -1488,447 +1542,560 @@ export default function Home() {
   };
 
 
+  const handleDeviceSetup = () => {
+    const name = deviceName.trim();
+
+    if (!name) {
+      return;
+    }
+
+    setDeviceName(name);
+
+    // This creates and saves the device ID for the first time
+    getDeviceID();
+
+    setNeedsDeviceSetup(false);
+
+    connect();
+  };
+
+
+  const resetStorage = () => {
+    localStorage.clear();
+    sessionStorage.clear();
+    window.location.reload();
+  };
+
   return (
-    <main style={{
-      maxWidth: '760px',
-      margin: '40px auto',
-      fontFamily: '"Inter", system-ui, -apple-system, sans-serif',
-      color: '#e2e8f0',
-      backgroundColor: '#090d16',
-      padding: '32px',
-      borderRadius: '24px',
-      boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6)',
-      border: '1px solid #1e293b'
-    }}>
-      {/* Top Navigation Tabs */}
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '32px' }}>
-        <div style={{
-          display: 'flex',
-          backgroundColor: '#0f172a',
-          padding: '4px',
-          borderRadius: '14px',
-          border: '1px solid #1e293b'
-        }}>
-          <button
-            onClick={() => setActiveTab('room')}
-            style={{
-              padding: '10px 28px',
-              borderRadius: '10px',
-              border: 'none',
-              backgroundColor: activeTab === 'room' ? '#1e293b' : 'transparent',
-              color: activeTab === 'room' ? '#38bdf8' : '#64748b',
-              fontWeight: '600',
-              fontSize: '14px',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              boxShadow: activeTab === 'room' ? '0 4px 12px rgba(0,0,0,0.2)' : 'none'
-            }}
-          >
-            Room
-          </button>
-          <button
-            onClick={() => setActiveTab('p2p')}
-            style={{
-              padding: '10px 28px',
-              borderRadius: '10px',
-              border: 'none',
-              backgroundColor: activeTab === 'p2p' ? '#1e293b' : 'transparent',
-              color: activeTab === 'p2p' ? '#38bdf8' : '#64748b',
-              fontWeight: '600',
-              fontSize: '14px',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              boxShadow: activeTab === 'p2p' ? '0 4px 12px rgba(0,0,0,0.2)' : 'none'
-            }}
-          >
-            P2P
-          </button>
-        </div>
-      </div>
 
-      {/* Main Workspace */}
-      <div>
+    <div>
 
-        <pre
+      <button
+        onClick={resetStorage}
+        style={{
+          padding: "8px 12px",
+          borderRadius: "6px",
+          border: "1px solid #ccc",
+          cursor: "pointer",
+        }}
+      >
+        Reset App Data
+      </button>
+
+
+      {needsDeviceSetup && (
+        <div
           style={{
-            marginTop: "30px",
-            padding: "25px",
-            background: "#222",
-            borderRadius: "12px",
-            overflowX: "auto",
-            whiteSpace: "pre-wrap",
-            wordBreak: "break-word",
-            fontSize: "14px",
-            lineHeight: "1.6",
+            position: "fixed",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: "#020617",
+            zIndex: 1000,
           }}
         >
-          {JSON.stringify(deviceInfo, null, 2)}
-        </pre>
+          <div
+            style={{
+              width: "min(420px, calc(100% - 40px))",
+              padding: "32px",
+              backgroundColor: "#090d16",
+              border: "1px solid #1e293b",
+              borderRadius: "20px",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.7)",
+            }}
+          >
+            <h2
+              style={{
+                margin: "0 0 8px",
+                color: "#f8fafc",
+                fontSize: "24px",
+                fontWeight: "700",
+              }}
+            >
+              Welcome to BRIDGE
+            </h2>
+
+            <p
+              style={{
+                margin: "0 0 24px",
+                color: "#94a3b8",
+                fontSize: "14px",
+                lineHeight: 1.6,
+              }}
+            >
+              Give this device a name so you can easily recognize it when
+              sharing files.
+            </p>
+
+            <input
+              autoFocus
+              value={deviceName}
+              onChange={(e) => setDeviceNameState(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleDeviceSetup();
+                }
+              }}
+              placeholder="Device name"
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                padding: "12px 14px",
+                borderRadius: "10px",
+                border: "1px solid #334155",
+                backgroundColor: "#020617",
+                color: "#f8fafc",
+                fontSize: "14px",
+                outline: "none",
+                marginBottom: "12px",
+              }}
+            />
+
+            <button
+              onClick={handleDeviceSetup}
+              disabled={!deviceName.trim()}
+              style={{
+                width: "100%",
+                padding: "12px",
+                borderRadius: "10px",
+                border: "none",
+                backgroundColor: deviceName.trim()
+                  ? "#2563eb"
+                  : "#1e293b",
+                color: deviceName.trim()
+                  ? "#ffffff"
+                  : "#64748b",
+                fontSize: "14px",
+                fontWeight: "600",
+                cursor: deviceName.trim()
+                  ? "pointer"
+                  : "not-allowed",
+              }}
+            >
+              Continue
+            </button>
+          </div>
+        </div>
+      )}
+      <main style={{
+        maxWidth: '760px',
+        margin: '40px auto',
+        fontFamily: '"Inter", system-ui, -apple-system, sans-serif',
+        color: '#e2e8f0',
+        backgroundColor: '#090d16',
+        padding: '32px',
+        borderRadius: '24px',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6)',
+        border: '1px solid #1e293b'
+      }}>
 
 
-        {activeTab === 'room' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            {/* Room Controls & Global File Bar */}
+        {/* Top Navigation Tabs */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '32px' }}>
+          <div style={{
+            display: 'flex',
+            backgroundColor: '#0f172a',
+            padding: '4px',
+            borderRadius: '14px',
+            border: '1px solid #1e293b'
+          }}>
+            <button
+              onClick={() => setActiveTab('room')}
+              style={{
+                padding: '10px 28px',
+                borderRadius: '10px',
+                border: 'none',
+                backgroundColor: activeTab === 'room' ? '#1e293b' : 'transparent',
+                color: activeTab === 'room' ? '#38bdf8' : '#64748b',
+                fontWeight: '600',
+                fontSize: '14px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: activeTab === 'room' ? '0 4px 12px rgba(0,0,0,0.2)' : 'none'
+              }}
+            >
+              Room
+            </button>
+            <button
+              onClick={() => setActiveTab('p2p')}
+              style={{
+                padding: '10px 28px',
+                borderRadius: '10px',
+                border: 'none',
+                backgroundColor: activeTab === 'p2p' ? '#1e293b' : 'transparent',
+                color: activeTab === 'p2p' ? '#38bdf8' : '#64748b',
+                fontWeight: '600',
+                fontSize: '14px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: activeTab === 'p2p' ? '0 4px 12px rgba(0,0,0,0.2)' : 'none'
+              }}
+            >
+              P2P
+            </button>
+          </div>
+        </div>
+
+        {/* Main Workspace */}
+        <div>
+          {activeTab === 'room' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              {/* Room Controls & Global File Bar */}
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px',
+                padding: '20px',
+                backgroundColor: '#0f172a',
+                borderRadius: '16px',
+                border: '1px solid #1e293b'
+              }}>
+                {/* Room Connect / Create Bar */}
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <input
+                    value={roomCode}
+                    onChange={(e) => setRoomCode(e.target.value)}
+                    placeholder="Enter Room Code"
+                    style={{
+                      flex: 1,
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      border: '1px solid #1e293b',
+                      backgroundColor: '#090d16',
+                      color: '#f8fafc',
+                      fontSize: '13px',
+                      outline: 'none'
+                    }}
+                  />
+                  <button
+                    onClick={joinRoom}
+                    style={{
+                      padding: '10px 18px',
+                      borderRadius: '10px',
+                      border: 'none',
+                      backgroundColor: '#2563eb',
+                      color: 'white',
+                      fontWeight: '600',
+                      fontSize: '13px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Join Room
+                  </button>
+                  <button
+                    onClick={createRoom}
+                    style={{
+                      padding: '10px 18px',
+                      borderRadius: '10px',
+                      border: '1px solid #334155',
+                      backgroundColor: 'transparent',
+                      color: '#f8fafc',
+                      fontWeight: '600',
+                      fontSize: '13px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Create
+                  </button>
+                </div>
+
+                {/* Global Selected File Bar */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 14px',
+                  backgroundColor: '#090d16',
+                  borderRadius: '10px',
+                  border: '1px dashed #334155'
+                }}>
+                  <span style={{ fontSize: '13px', color: '#94a3b8' }}>
+                    {selectedFile ? `Selected: ${selectedFile.name}` : "No global file selected"}
+                  </span>
+                  <input
+                    type="file"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] ?? null;
+                      setSelectedFile(file);
+                    }}
+                    style={{ fontSize: '12px', color: '#94a3b8' }}
+                  />
+                </div>
+              </div>
+
+              {/* Devices Grid / List */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
+                {roomDevices.length === 0 && (
+                  <div style={{
+                    gridColumn: '1 / -1',
+                    textAlign: 'center',
+                    padding: '40px 20px',
+                    backgroundColor: '#0f172a',
+                    borderRadius: '16px',
+                    border: '1px solid #1e293b',
+                    color: '#64748b',
+                    fontSize: '14px'
+                  }}>
+                    No devices connected to this room yet.
+                  </div>
+                )}
+
+                {roomDevices.filter((device) => device.deviceId !== getDeviceID())
+                  .map((device) => {
+                    const isCurrentDevice = device.deviceId === getDeviceID();
+                    const isConnected = roomPeerStatus[device.deviceId];
+
+                    return (
+                      <div
+                        key={device.deviceId}
+                        style={{
+                          padding: '20px',
+                          backgroundColor: '#0f172a',
+                          borderRadius: '16px',
+                          border: isConnected ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid #1e293b',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '16px',
+                          boxShadow: isConnected ? '0 0 15px rgba(56, 189, 248, 0.05)' : 'none'
+                        }}
+                      >
+                        {/* Device Header */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+
+                              <DeviceIcon
+                                deviceType={
+                                  remoteDeviceInfo[device.deviceId]?.deviceType
+                                  ?? "unknown"
+                                }
+                                size={30}
+                              />
+
+                              <span style={{
+                                width: '8px',
+                                height: '8px',
+                                borderRadius: '50%',
+                                backgroundColor: device.online ? '#10b981' : '#f43f5e'
+                              }} />
+                              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#f8fafc' }}>
+                                {device.deviceName}
+                              </h3>
+                            </div>
+                            <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
+                              {device.isHost && (
+                                <span style={{ fontSize: '10px', backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>
+                                  HOST
+                                </span>
+                              )}
+                              {isCurrentDevice && (
+                                <span style={{ fontSize: '10px', backgroundColor: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>
+                                  YOU
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Connection State / Button */}
+                          {!isCurrentDevice && device.online && (
+                            isConnected ? (
+                              <button
+                                onClick={() => disconnectFromRoomDevice(device.deviceId)}
+                                style={{
+                                  padding: '6px 12px',
+                                  borderRadius: '8px',
+                                  border: '1px solid rgba(244, 63, 94, 0.3)',
+                                  backgroundColor: 'rgba(244, 63, 94, 0.1)',
+                                  color: '#f43f5e',
+                                  fontSize: '12px',
+                                  fontWeight: '600',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Disconnect
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => connectToRoomDevice(device)}
+                                style={{
+                                  padding: '6px 12px',
+                                  borderRadius: '8px',
+                                  border: 'none',
+                                  backgroundColor: '#2563eb',
+                                  color: 'white',
+                                  fontSize: '12px',
+                                  fontWeight: '600',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Connect
+                              </button>
+                            )
+                          )}
+                        </div>
+
+                        {/* Card Actions (Text & Send File) */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: 'auto' }}>
+                          <input
+                            placeholder={`Message to ${device.deviceName}...`}
+                            value={deviceMessages?.[device.deviceId] || ''}
+                            onFocus={() => {
+                              if (!isCurrentDevice && device.online) {
+                                const channel =
+                                  roomDataChannels.current.get(device.deviceId);
+
+                                if (channel?.readyState === "open") {
+                                  resetRoomPeerTimer(device.deviceId);
+                                }
+
+                                ensureRoomConnection(device);
+                              }
+                            }}
+                            onChange={(e) => {
+                              const value = e.target.value;
+
+                              setDeviceMessages((prev) => ({
+                                ...prev,
+                                [device.deviceId]: value,
+                              }));
+                            }}
+
+
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                const text = deviceMessages?.[device.deviceId];
+                                if (text && text.trim()) {
+                                  // Send the message
+                                  sendRoomMessage(device, text);
+
+                                  // Clear the input for this specific device
+                                  setDeviceMessages((prev) => ({
+                                    ...prev,
+                                    [device.deviceId]: "",
+                                  }));
+                                }
+                              }
+                            }}
+
+
+                            style={{
+                              width: '100%',
+                              boxSizing: 'border-box',
+                              padding: '8px 12px',
+                              borderRadius: '8px',
+                              border: '1px solid #1e293b',
+                              backgroundColor: '#090d16',
+                              color: '#f8fafc',
+                              fontSize: '12px',
+                              outline: 'none'
+                            }}
+                          />
+
+                          {!isCurrentDevice && device.online && isConnected && (
+                            <button
+                              onClick={() => {
+                                if (!selectedFile) {
+                                  console.log("No file selected");
+                                  return;
+                                }
+                                sendFileToRoomDevice(device.deviceId, selectedFile);
+                              }}
+                              style={{
+                                width: '100%',
+                                padding: '8px',
+                                borderRadius: '8px',
+                                border: 'none',
+                                backgroundColor: selectedFile ? '#059669' : '#1e293b',
+                                color: selectedFile ? '#ffffff' : '#64748b',
+                                fontSize: '12px',
+                                fontWeight: '600',
+                                cursor: selectedFile ? 'pointer' : 'not-allowed',
+                                transition: 'all 0.2s'
+                              }}
+                            >
+                              Send Selected File
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+
+              {/* Room Messages */}
+              <div
+                style={{
+                  padding: "20px",
+                  backgroundColor: "#0f172a",
+                  borderRadius: "16px",
+                  border: "1px solid #1e293b",
+                }}
+              >
+                <h3
+                  style={{
+                    margin: "0 0 12px",
+                    fontSize: "14px",
+                    color: "#f8fafc",
+                  }}
+                >
+                  Room Messages
+                </h3>
+
+                {receivedMessages.length === 0 ? (
+                  <div
+                    style={{
+                      color: "#64748b",
+                      fontSize: "13px",
+                    }}
+                  >
+                    No messages yet.
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "8px",
+                    }}
+                  >
+                    {receivedMessages.map((msg, index) => (
+                      <div
+                        key={index}
+                        style={{
+                          padding: "8px 12px",
+                          backgroundColor: "#090d16",
+                          borderRadius: "8px",
+                          color: "#cbd5e1",
+                          fontSize: "13px",
+                        }}
+                      >
+                        {msg}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* P2P Workspace (Blank as requested) */}
+          {activeTab === 'p2p' && (
             <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '16px',
-              padding: '20px',
+              minHeight: '260px',
               backgroundColor: '#0f172a',
               borderRadius: '16px',
               border: '1px solid #1e293b'
             }}>
-              {/* Room Connect / Create Bar */}
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <input
-                  value={roomCode}
-                  onChange={(e) => setRoomCode(e.target.value)}
-                  placeholder="Enter Room Code"
-                  style={{
-                    flex: 1,
-                    padding: '10px 14px',
-                    borderRadius: '10px',
-                    border: '1px solid #1e293b',
-                    backgroundColor: '#090d16',
-                    color: '#f8fafc',
-                    fontSize: '13px',
-                    outline: 'none'
-                  }}
-                />
-                <button
-                  onClick={joinRoom}
-                  style={{
-                    padding: '10px 18px',
-                    borderRadius: '10px',
-                    border: 'none',
-                    backgroundColor: '#2563eb',
-                    color: 'white',
-                    fontWeight: '600',
-                    fontSize: '13px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Join Room
-                </button>
-                <button
-                  onClick={createRoom}
-                  style={{
-                    padding: '10px 18px',
-                    borderRadius: '10px',
-                    border: '1px solid #334155',
-                    backgroundColor: 'transparent',
-                    color: '#f8fafc',
-                    fontWeight: '600',
-                    fontSize: '13px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Create
-                </button>
-              </div>
-
-              {/* Global Selected File Bar */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '10px 14px',
-                backgroundColor: '#090d16',
-                borderRadius: '10px',
-                border: '1px dashed #334155'
-              }}>
-                <span style={{ fontSize: '13px', color: '#94a3b8' }}>
-                  {selectedFile ? `Selected: ${selectedFile.name}` : "No global file selected"}
-                </span>
-                <input
-                  type="file"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] ?? null;
-                    setSelectedFile(file);
-                  }}
-                  style={{ fontSize: '12px', color: '#94a3b8' }}
-                />
-              </div>
+              {/* Blank P2P Div Container */}
             </div>
-
-            {/* Devices Grid / List */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
-              {roomDevices.length === 0 && (
-                <div style={{
-                  gridColumn: '1 / -1',
-                  textAlign: 'center',
-                  padding: '40px 20px',
-                  backgroundColor: '#0f172a',
-                  borderRadius: '16px',
-                  border: '1px solid #1e293b',
-                  color: '#64748b',
-                  fontSize: '14px'
-                }}>
-                  No devices connected to this room yet.
-                </div>
-              )}
-
-              {roomDevices.filter((device) => device.deviceId !== getDeviceID())
-                .map((device) => {
-                  const isCurrentDevice = device.deviceId === getDeviceID();
-                  const isConnected = roomPeerStatus[device.deviceId];
-
-                  return (
-                    <div
-                      key={device.deviceId}
-                      style={{
-                        padding: '20px',
-                        backgroundColor: '#0f172a',
-                        borderRadius: '16px',
-                        border: isConnected ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid #1e293b',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '16px',
-                        boxShadow: isConnected ? '0 0 15px rgba(56, 189, 248, 0.05)' : 'none'
-                      }}
-                    >
-                      {/* Device Header */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{
-                              width: '8px',
-                              height: '8px',
-                              borderRadius: '50%',
-                              backgroundColor: device.online ? '#10b981' : '#f43f5e'
-                            }} />
-                            <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#f8fafc' }}>
-                              {device.deviceName}
-                            </h3>
-                          </div>
-                          <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
-                            {device.isHost && (
-                              <span style={{ fontSize: '10px', backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>
-                                HOST
-                              </span>
-                            )}
-                            {isCurrentDevice && (
-                              <span style={{ fontSize: '10px', backgroundColor: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>
-                                YOU
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Connection State / Button */}
-                        {!isCurrentDevice && device.online && (
-                          isConnected ? (
-                            <button
-                              onClick={() => disconnectFromRoomDevice(device.deviceId)}
-                              style={{
-                                padding: '6px 12px',
-                                borderRadius: '8px',
-                                border: '1px solid rgba(244, 63, 94, 0.3)',
-                                backgroundColor: 'rgba(244, 63, 94, 0.1)',
-                                color: '#f43f5e',
-                                fontSize: '12px',
-                                fontWeight: '600',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              Disconnect
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => connectToRoomDevice(device)}
-                              style={{
-                                padding: '6px 12px',
-                                borderRadius: '8px',
-                                border: 'none',
-                                backgroundColor: '#2563eb',
-                                color: 'white',
-                                fontSize: '12px',
-                                fontWeight: '600',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              Connect
-                            </button>
-                          )
-                        )}
-                      </div>
-
-                      {/* Card Actions (Text & Send File) */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: 'auto' }}>
-                        <input
-                          placeholder={`Message to ${device.deviceName}...`}
-                          value={deviceMessages?.[device.deviceId] || ''}
-                          onFocus={() => {
-                            if (!isCurrentDevice && device.online) {
-                              const channel =
-                                roomDataChannels.current.get(device.deviceId);
-
-                              if (channel?.readyState === "open") {
-                                resetRoomPeerTimer(device.deviceId);
-                              }
-
-                              ensureRoomConnection(device);
-                            }
-                          }}
-                          onChange={(e) => {
-                            const value = e.target.value;
-
-                            setDeviceMessages((prev) => ({
-                              ...prev,
-                              [device.deviceId]: value,
-                            }));
-
-                            // Clear previous debounce timer
-                            const oldTimer =
-                              messageTimers.current.get(device.deviceId);
-
-                            if (oldTimer) {
-                              clearTimeout(oldTimer);
-                            }
-
-                            // Don't send empty input
-                            if (!value.trim()) {
-                              return;
-                            }
-
-                            const timer = setTimeout(() => {
-                              sendRoomMessage(device, value);
-
-                              // Clear the input after sending
-                              setDeviceMessages((prev) => ({
-                                ...prev,
-                                [device.deviceId]: "",
-                              }));
-
-                              messageTimers.current.delete(
-                                device.deviceId
-                              );
-                            }, 2000);
-
-                            messageTimers.current.set(
-                              device.deviceId,
-                              timer
-                            );
-                          }}
-
-                          style={{
-                            width: '100%',
-                            boxSizing: 'border-box',
-                            padding: '8px 12px',
-                            borderRadius: '8px',
-                            border: '1px solid #1e293b',
-                            backgroundColor: '#090d16',
-                            color: '#f8fafc',
-                            fontSize: '12px',
-                            outline: 'none'
-                          }}
-                        />
-
-                        {!isCurrentDevice && device.online && isConnected && (
-                          <button
-                            onClick={() => {
-                              if (!selectedFile) {
-                                console.log("No file selected");
-                                return;
-                              }
-                              sendFileToRoomDevice(device.deviceId, selectedFile);
-                            }}
-                            style={{
-                              width: '100%',
-                              padding: '8px',
-                              borderRadius: '8px',
-                              border: 'none',
-                              backgroundColor: selectedFile ? '#059669' : '#1e293b',
-                              color: selectedFile ? '#ffffff' : '#64748b',
-                              fontSize: '12px',
-                              fontWeight: '600',
-                              cursor: selectedFile ? 'pointer' : 'not-allowed',
-                              transition: 'all 0.2s'
-                            }}
-                          >
-                            Send Selected File
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
-
-            {/* Room Messages */}
-            <div
-              style={{
-                padding: "20px",
-                backgroundColor: "#0f172a",
-                borderRadius: "16px",
-                border: "1px solid #1e293b",
-              }}
-            >
-              <h3
-                style={{
-                  margin: "0 0 12px",
-                  fontSize: "14px",
-                  color: "#f8fafc",
-                }}
-              >
-                Room Messages
-              </h3>
-
-              {receivedMessages.length === 0 ? (
-                <div
-                  style={{
-                    color: "#64748b",
-                    fontSize: "13px",
-                  }}
-                >
-                  No messages yet.
-                </div>
-              ) : (
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "8px",
-                  }}
-                >
-                  {receivedMessages.map((msg, index) => (
-                    <div
-                      key={index}
-                      style={{
-                        padding: "8px 12px",
-                        backgroundColor: "#090d16",
-                        borderRadius: "8px",
-                        color: "#cbd5e1",
-                        fontSize: "13px",
-                      }}
-                    >
-                      {msg}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* P2P Workspace (Blank as requested) */}
-        {activeTab === 'p2p' && (
-          <div style={{
-            minHeight: '260px',
-            backgroundColor: '#0f172a',
-            borderRadius: '16px',
-            border: '1px solid #1e293b'
-          }}>
-            {/* Blank P2P Div Container */}
-          </div>
-        )}
+          )}
 
 
-      </div>
+        </div>
+      </main>
 
-
-
-    </main>
+    </div>
   );
 
 }

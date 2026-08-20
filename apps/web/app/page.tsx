@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { MessageType } from "@bridge/shared";
 
 // WEBRTC  imports
 import { addIceCandidate, createAnswer, createDataChannel, createOffer, createPeerConnection, sendFile, setRemoteAnswer, setRemoteOffer } from "../lib/webrtc";
-import { getDeviceID, hasDeviceID, getDeviceName, setDeviceName, } from "../lib/device";
+import { getDeviceID, hasDeviceID, getDeviceName, setDeviceNameInLocalstorage, } from "../lib/device";
 
 import DeviceIcon from "../components/DeviceIcon";
 
@@ -22,6 +22,15 @@ import {
   parseDeviceInfoMessage,
 } from "../lib/deviceExchange";
 import BinaryBridgeTowers from "../components/BinaryBridgeTowers";
+import Intro from "../components/Intro";
+import StrokeText from '../components/StrokeText';
+
+
+import { useGSAP } from "@gsap/react";
+import gsap from "gsap";
+import CodeInput from "../components/CodeInput";
+import React from "react";
+
 
 export default function Home() {
   const socket = useRef<WebSocket | null>(null);
@@ -31,6 +40,7 @@ export default function Home() {
   const dataChannel = useRef<RTCDataChannel | null>(null);
   const pendingCandidates = useRef<RTCIceCandidateInit[]>([]);                // state to store the ice candidates if the offer-answer cyclis still in process
   const roomPendingCandidates = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
+  const joinButtonRef = useRef<HTMLButtonElement | null>(null);
 
   const roomPeers = useRef<Map<string, RTCPeerConnection>>(new Map());
   const roomDataChannels = useRef<Map<string, RTCDataChannel>>(new Map());
@@ -56,6 +66,17 @@ export default function Home() {
     new Map()
   );
 
+  const otpbuttonRef = useRef<HTMLButtonElement | null>(null);   // otp button ref
+
+  // GSAP REFS
+  const heroRef = useRef<HTMLDivElement>(null)
+  const Container = useRef<HTMLDivElement>(null)
+  const heroTL = useRef<gsap.core.Timeline | null>(null);
+  const afterIntroTL = useRef<gsap.core.Timeline | null>(null);
+  const roomJoinedTl = useRef<gsap.core.Timeline | null>(null);
+  const RefreshTL = useRef<gsap.core.Timeline | null>(null);
+  const introRef = useRef<HTMLDivElement>(null);
+
 
   const [connected, setConnected] = useState(false);
   const [message, setMessage] = useState("");                                 // state for current message
@@ -64,6 +85,7 @@ export default function Home() {
   const [sessionCode, setSessionCode] = useState("");                         // usestate for storing the code from next browser
   const [selectedFile, setSelectedFile] = useState<File | null>(null)         // state for storing the current file
   const [roomCode, setRoomCode] = useState<string>("")
+  const [roomCodeCreated, setRoomCodeCreated] = useState<string>("")
   const [roomDevices, setRoomDevices] = useState<
     {
       deviceId: string;
@@ -74,8 +96,11 @@ export default function Home() {
   >([]);
   const [roomPeerStatus, setRoomPeerStatus] = useState<Record<string, boolean>>({});
 
-  const [needsDeviceSetup, setNeedsDeviceSetup] = useState(false);
-  const [deviceName, setDeviceNameState] = useState("");
+  const [needsDeviceSetup, setNeedsDeviceSetup] = useState(true);
+  const [isNewUser, setIsNewUser] = useState(false)
+  const [isSettled, setIsSettled] = useState(false); // To track if we've checked localStorage
+
+  const [deviceName, setDeviceNameState] = useState("My Device");
 
   const [activeTab, setActiveTab] = useState('room');
   const [deviceMessages, setDeviceMessages] = useState<Record<string, string>>({});
@@ -87,13 +112,12 @@ export default function Home() {
   const [remoteDeviceInfo, setRemoteDeviceInfo] =
     useState<Record<string, DeviceInfo>>({});
 
-  useEffect(() => {
-    console.log("App started");
+  useLayoutEffect(() => {
+    console.log('use layout effect running ',)
 
     const info = getLocalDeviceInfo();
 
     setDeviceInfo(info);
-
 
     if (!hasDeviceID()) {
       console.log("🆕 First visit — device setup required");
@@ -101,21 +125,26 @@ export default function Home() {
       setDeviceNameState(info.deviceType);
 
       setNeedsDeviceSetup(true);
+      setIsNewUser(true)
+      setIsSettled(true);
 
       return;
     }
+    setNeedsDeviceSetup(false);
+    console.log('not first visit , setup is set false',)
 
-    connect();
-    console.log('connection made , if didnt run')
-  }, []);
+    setIsSettled(true);
+    console.log('is steeled is set to true',)
+
+  }, [])
+
 
   // WHOLE IMPLEMENTATION IS BELOW
 
   const connect = () => {
 
-    // console.log("WS URL =", process.env.NEXT_PUBLIC_WS_URL);
+    console.log('running the connect function',)
     socket.current = new WebSocket(process.env.NEXT_PUBLIC_WS_URL!);
-
 
     socket.current.onopen = () => {
       setConnected(true);
@@ -140,16 +169,15 @@ export default function Home() {
 
       switch (data.type) {
         case MessageType.CLIENT_ID:
-          console.log("My Client ID:", data.payload.clientId);
           break;
 
         case MessageType.SESSION_CREATED:
+          console.log('SESSION_CREATED CASE RAN',)
           console.log("Session Code:", data.payload.code);
           break;
 
         case MessageType.SESSION_JOINED: {
-          console.log("Connected to peer:", data.payload.peerId);
-
+          console.log('SESSION_JOINED CASE RAN',)
           peerREF.current = createPeerConnection((candidate) => {
             if (candidate) {
               socket.current?.send(
@@ -509,6 +537,7 @@ export default function Home() {
         }
 
         case MessageType.OFFER: {
+          console.log('OFFER CASE RAN',)
 
           await setRemoteOffer(
             peerREF.current!,
@@ -540,6 +569,7 @@ export default function Home() {
         }
 
         case MessageType.ANSWER: {
+          console.log('ANSWER CASE RAN',)
           await setRemoteAnswer(
             peerREF.current!,
             data.payload.answer
@@ -553,6 +583,7 @@ export default function Home() {
         }
 
         case MessageType.ICE_CANDIDATE: {
+          console.log('ICE_CANDIDATE CASE RAN',)
 
           const candidate = data.payload.candidate
 
@@ -572,14 +603,19 @@ export default function Home() {
         }
 
         case MessageType.ROOM_CREATED: {
+          console.log('ROOM_CREATED CASE RAN',)
           const code = data.payload.code;
           console.log("Room created:", code);
+          setRoomCodeCreated(code)
           setRoomCode(code);
           break;
         }
 
         case MessageType.ROOM_JOINED: {
+          console.log('ROOM_JOINED CASE RAN',)
           const code = data.payload.code;
+
+          roomJoinedTl
 
           setRoomCode(code);
           setRoomDevices(data.payload.devices);
@@ -597,7 +633,7 @@ export default function Home() {
         }
 
         case MessageType.ROOM_DEVICES_UPDATED: {
-          console.log("Room devices updated");
+          console.log("Room devices updated , CASE RAN");
 
           const devices = data.payload.devices;
 
@@ -651,6 +687,7 @@ export default function Home() {
         }
 
         case MessageType.ROOM_OFFER: {
+          console.log('ROOM_OFFER CASE RAN',)
           console.log(
             `📥 Room OFFER received from ${data.payload.senderDeviceId}`
           );
@@ -801,6 +838,7 @@ export default function Home() {
         }
 
         case MessageType.ROOM_ANSWER: {
+          console.log('ROOM_ANSWER CASE RAN',)
           const deviceId =
             data.payload.senderDeviceId;
 
@@ -835,6 +873,7 @@ export default function Home() {
         }
 
         case MessageType.ROOM_ICE_CANDIDATE: {
+          console.log('ROOM-ICE-CANDIDATE CASE RAN',)
           const senderDeviceId =
             data.payload.senderDeviceId;
 
@@ -902,7 +941,7 @@ export default function Home() {
           break;
         }
         default: {
-          console.log("Unknown message:", data.type);
+          // console.log("default csae message:", data.type);
         }
       }
 
@@ -911,7 +950,7 @@ export default function Home() {
 
     // when soxket closes dothis
     socket.current.onclose = () => {
-      console.log("Disconnected");
+      console.log("socket disconnected from server Disconnected");
       setConnected(false);
     };
   };
@@ -1014,7 +1053,7 @@ export default function Home() {
 
   const joinRoom = () => {
     if (!roomCode.trim()) {
-      console.log('rooomcode not entered')
+      console.log('rooomcode not entered , printed from JoinRoom function')
       return
     }
 
@@ -1548,13 +1587,10 @@ export default function Home() {
     if (!name) {
       return;
     }
-
-    setDeviceName(name);
+    setDeviceNameInLocalstorage(name);
 
     // This creates and saves the device ID for the first time
     getDeviceID();
-
-    setNeedsDeviceSetup(false);
 
     connect();
   };
@@ -1566,11 +1602,217 @@ export default function Home() {
     window.location.reload();
   };
 
+
+
+
+  // // GSAP ANIMATIONS
+  useGSAP(
+    () => {
+
+      console.log('we are inside gsap hook ',)
+      if (!isSettled) {
+        console.log('not sttled if returned',)
+        return
+      };
+      console.log('we are inside settler',)
+
+
+      // run this animation if we need device setup
+      if (isNewUser) {
+
+        if (!heroRef.current || !introRef.current) return
+
+        heroTL.current = gsap.timeline({
+          paused: true,
+        });
+
+        afterIntroTL.current = gsap.timeline({
+          paused: true,
+        });
+
+
+        gsap.set(introRef.current, {
+          y: 30,
+          opacity: 0,
+          pointerEvents: "auto"
+          // scale: 0.95
+        });
+
+        heroTL.current.to(
+          heroRef.current,
+          {
+            scale: 0.5,
+            y: "-40vh",
+            duration: 1,
+            delay: 0.5,
+            ease: "power2.inOut",
+          })
+          .to(introRef.current, {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            duration: 0.5
+          }, ">-0.3")
+
+
+        afterIntroTL.current.
+          to(heroRef.current, {
+            y: "-55vh",
+            duration: 1
+          })
+          .to(introRef.current, {
+            opacity: 0,
+            duration: 0.5,
+            pointerEvents: "none"
+          }, "<")
+          .set("#logo", {
+            x: -100,
+          })
+          .set("#navTabs", {
+            y: -100,
+          })
+          .set("#roomIntroText", {
+            y: -30,
+            scale: 0.95
+          })
+          .set("#roomSelectionBox", {
+            y: 50,
+            scale: 0.95
+          })
+          .set("#roomWorkSpace", {
+            pointerEvents: "auto"
+          })
+          .to("#logo", {
+            opacity: 1,
+            duration: 0.5,
+            x: 0
+          }, "<")
+          .to("#navTabs", {
+            opacity: 1,
+            y: 0,
+            duration: 0.5,
+            onComplete: () => {
+              setNeedsDeviceSetup(false)
+            }
+          }, "<")
+          .to("#roomIntroText", {
+            opacity: 1,
+            scale: 1,
+            y: 0,
+            duration: 0.5,
+          }, "<")
+          .to("#roomSelectionBox", {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            duration: 0.5,
+          }, ">")
+          .to("#roomSelectionText-1", {
+            opacity: 1,
+            // y: 0,
+            // scale: 1,
+            duration: 0.5,
+          }, ">")
+
+      }
+
+      // run tis animation when we do no need device setup
+      // if (!isNewUser) {
+
+      //   console.log('refresh animation working',)
+
+      //   RefreshTL.current = gsap.timeline();
+
+      //   RefreshTL.current
+      //     .set("#logo", {
+      //       x: -100,
+      //     })
+      //     .set("#navTabs", {
+      //       y: -100,
+      //     })
+      //     .to("#logo", {
+      //       opacity: 1,
+      //       duration: 0.5,
+      //       x: 0
+      //     }, "<")
+      //     .to("#navTabs", {
+      //       opacity: 1,
+      //       y: 0,
+      //       duration: 0.5
+      //     }, "<")
+      // }
+
+    },
+    {
+      scope: Container,
+      dependencies: [isSettled, isNewUser],
+    }
+  );
+
+
+  // this gsap runs the animation when first room is joined
+  useGSAP(() => {
+    roomJoinedTl.current = gsap.timeline({
+      paused: true
+    })
+
+    console.log('we are inside second ', )
+    roomJoinedTl.current
+      .to("#roomSelectionBox", {
+        height: "100%",
+        width: "100%",
+        duration: 0.5
+      })
+
+
+  })
+
+  const createRoomButtonAnimation = () => {
+    const tl = gsap.timeline();
+
+    tl
+      .set("#roomSelectionText-2", {
+        scale: 0.7
+      })
+      .to("#roomSelectionText-1", {
+        yPercent: -100,
+        opacity: 0,
+        scale: 0.7,
+        duration: 0.8,
+        ease: "power1.out",
+      })
+      .to(
+        "#roomSelectionText-2",
+        {
+          yPercent: -100,
+          opacity: 1,
+          scale: 1,
+          duration: 0.8,
+          ease: "power1.out",
+        },
+        "<"
+      );
+  }
+
+  const handleStrokeComplete = () => {
+    heroTL.current?.play();
+  };
+
+  const handleIntroSetupDone = () => {
+    afterIntroTL.current?.play();
+  }
+
+  // this function fires when inside codeInput comp all six digs are typed
+  const handleCodeComplete = (code: string) => {
+    setRoomCode(code)
+  };
+
+
   return (
 
-    <div>
+    <div ref={Container} className="relative bg-[#010610] w-[100vw] h-[100vh] flex flex-  items-center">
 
-      <button
+      <button className="absolute z-10000 top-0 right-0 bg-amber-600 "
         onClick={resetStorage}
         style={{
           padding: "8px 12px",
@@ -1582,518 +1824,240 @@ export default function Home() {
         Reset App Data
       </button>
 
+      {/* hero text */}
 
-      {needsDeviceSetup && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: "#020617",
-            zIndex: 1000,
-          }}
-        >
-          <div
-            style={{
-              width: "min(420px, calc(100% - 40px))",
-              padding: "32px",
-              backgroundColor: "#090d16",
-              border: "1px solid #1e293b",
-              borderRadius: "20px",
-              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.7)",
-            }}
-          >
-            <h2
-              style={{
-                margin: "0 0 8px",
-                color: "#f8fafc",
-                fontSize: "24px",
-                fontWeight: "700",
-              }}
-            >
-              Welcome to BRIDGE
-            </h2>
+      <div ref={heroRef} className="absolute inset-0 neon-font " >
+        <StrokeText
+          className="tile absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-2/3 "
+          text="Escape-Bridge"
+          strokeColor="#A78BFA"
+          fillColor="#F8FAFC"
+          strokeWidth={1}
+          drawDuration={1}
+          fillDelay={0}
+          stagger={0.05}
+          ease="power2.out"
+          trigger="mount"
+          fillMode="wipe"
+          fontSize={130}
+          fontWeight={800}
+          letterSpacing={-4}
+          reverse={false}
+          onComplete={handleStrokeComplete}
 
-            <p
-              style={{
-                margin: "0 0 24px",
-                color: "#94a3b8",
-                fontSize: "14px",
-                lineHeight: 1.6,
-              }}
-            >
-              Give this device a name so you can easily recognize it when
-              sharing files.
-            </p>
+        /></div>
 
-            <input
-              autoFocus
-              value={deviceName}
-              onChange={(e) => setDeviceNameState(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleDeviceSetup();
-                }
-              }}
-              placeholder="Device name"
-              style={{
-                width: "100%",
-                boxSizing: "border-box",
-                padding: "12px 14px",
-                borderRadius: "10px",
-                border: "1px solid #334155",
-                backgroundColor: "#020617",
-                color: "#f8fafc",
-                fontSize: "14px",
-                outline: "none",
-                marginBottom: "12px",
-              }}
-            />
 
-            <button
-              onClick={handleDeviceSetup}
-              disabled={!deviceName.trim()}
-              style={{
-                width: "100%",
-                padding: "12px",
-                borderRadius: "10px",
-                border: "none",
-                backgroundColor: deviceName.trim()
-                  ? "#2563eb"
-                  : "#1e293b",
-                color: deviceName.trim()
-                  ? "#ffffff"
-                  : "#64748b",
-                fontSize: "14px",
-                fontWeight: "600",
-                cursor: deviceName.trim()
-                  ? "pointer"
-                  : "not-allowed",
-              }}
-            >
-              Continue
-            </button>
+      {/* intro para */}
+      <div ref={introRef} className="absolute  h-full w-full flex items-center justify-center opacity-0 pointer-events-none">
+
+        <Intro
+          deviceName={deviceName}
+          setDeviceNameState={setDeviceNameState}
+          handleDeviceSetup={handleDeviceSetup}
+          handleIntroSetupDone={handleIntroSetupDone}
+        />
+      </div>
+
+
+
+      {/* Main site things */}
+      <div className="w-full h-full flex flex-col  ">
+
+        {/* ROP BAR */}
+        <div className=" w-full h-1/10 grid grid-cols-3  ">
+
+          {/* side logo */}
+          <h1 id="logo" className="neon-font font-extrabold text-3xl tracking-wide justify-self-start self-center h-fit ml-[2vw] opacity-0">
+            Escape-Bridge
+          </h1>
+
+          {/* Top Navigation Tabs */}
+          <div id="navTabs" className="  justify-self-center self-center opacity-0">
+            <div className="flex rounded-[14px] border border-slate-800 bg-slate-900 p-1 h-18">
+              <button
+                onClick={() => setActiveTab('room')}
+                className={`cursor-pointer rounded-[10px] border-none px-7 py-2.5text-sm font-semibold transition-all duration-200 ease-in-out${activeTab === 'room'
+                  ? 'bg-slate-800 text-sky-400 shadow-[0_4px_12px_rgba(0,0,0,0.2)]'
+                  : 'bg-transparent text-slate-500 shadow-none'
+                  }`}>
+                Room
+              </button>
+
+              <button
+                onClick={() => setActiveTab('p2p')}
+                className={`cursor-pointer rounded-[10px] border-none px-7 py-2.5        text-sm font-semibold transition-all duration-200 ease-in-out        ${activeTab === 'p2p'
+                  ? 'bg-slate-800 text-sky-400 shadow-[0_4px_12px_rgba(0,0,0,0.2)]'
+                  : 'bg-transparent text-slate-500 shadow-none'
+                  }`}>
+                P2P
+              </button>
+            </div>
           </div>
-        </div>
-      )}
-      <main style={{
-        maxWidth: '760px',
-        margin: '40px auto',
-        fontFamily: '"Inter", system-ui, -apple-system, sans-serif',
-        color: '#e2e8f0',
-        backgroundColor: '#090d16',
-        padding: '32px',
-        borderRadius: '24px',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6)',
-        border: '1px solid #1e293b'
-      }}>
 
-
-        {/* Top Navigation Tabs */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '32px' }}>
-          <div style={{
-            display: 'flex',
-            backgroundColor: '#0f172a',
-            padding: '4px',
-            borderRadius: '14px',
-            border: '1px solid #1e293b'
-          }}>
-            <button
-              onClick={() => setActiveTab('room')}
-              style={{
-                padding: '10px 28px',
-                borderRadius: '10px',
-                border: 'none',
-                backgroundColor: activeTab === 'room' ? '#1e293b' : 'transparent',
-                color: activeTab === 'room' ? '#38bdf8' : '#64748b',
-                fontWeight: '600',
-                fontSize: '14px',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                boxShadow: activeTab === 'room' ? '0 4px 12px rgba(0,0,0,0.2)' : 'none'
-              }}
-            >
-              Room
-            </button>
-            <button
-              onClick={() => setActiveTab('p2p')}
-              style={{
-                padding: '10px 28px',
-                borderRadius: '10px',
-                border: 'none',
-                backgroundColor: activeTab === 'p2p' ? '#1e293b' : 'transparent',
-                color: activeTab === 'p2p' ? '#38bdf8' : '#64748b',
-                fontWeight: '600',
-                fontSize: '14px',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                boxShadow: activeTab === 'p2p' ? '0 4px 12px rgba(0,0,0,0.2)' : 'none'
-              }}
-            >
-              P2P
-            </button>
-          </div>
         </div>
 
-        {/* Main Workspace */}
-        <div>
-          {activeTab === 'room' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              {/* Room Controls & Global File Bar */}
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '16px',
-                padding: '20px',
-                backgroundColor: '#0f172a',
-                borderRadius: '16px',
-                border: '1px solid #1e293b'
-              }}>
-                {/* Room Connect / Create Bar */}
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <input
-                    value={roomCode}
-                    onChange={(e) => setRoomCode(e.target.value)}
-                    placeholder="Enter Room Code"
-                    style={{
-                      flex: 1,
-                      padding: '10px 14px',
-                      borderRadius: '10px',
-                      border: '1px solid #1e293b',
-                      backgroundColor: '#090d16',
-                      color: '#f8fafc',
-                      fontSize: '13px',
-                      outline: 'none'
-                    }}
-                  />
-                  <button
-                    onClick={joinRoom}
-                    style={{
-                      padding: '10px 18px',
-                      borderRadius: '10px',
-                      border: 'none',
-                      backgroundColor: '#2563eb',
-                      color: 'white',
-                      fontWeight: '600',
-                      fontSize: '13px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Join Room
-                  </button>
-                  <button
-                    onClick={createRoom}
-                    style={{
-                      padding: '10px 18px',
-                      borderRadius: '10px',
-                      border: '1px solid #334155',
-                      backgroundColor: 'transparent',
-                      color: '#f8fafc',
-                      fontWeight: '600',
-                      fontSize: '13px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Create
-                  </button>
-                </div>
+        {/* BOTTOM SECTION */}
+        <div className=" mx-auto m-10  w-[90vw] h-[90%] bg font-['Inter',system-ui,-apple-system,sans-serif] text-slate-200 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.6)] ">
 
-                {/* Global Selected File Bar */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '10px 14px',
-                  backgroundColor: '#090d16',
-                  borderRadius: '10px',
-                  border: '1px dashed #334155'
-                }}>
-                  <span style={{ fontSize: '13px', color: '#94a3b8' }}>
-                    {selectedFile ? `Selected: ${selectedFile.name}` : "No global file selected"}
-                  </span>
-                  <input
-                    type="file"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0] ?? null;
-                      setSelectedFile(file);
-                    }}
-                    style={{ fontSize: '12px', color: '#94a3b8' }}
-                  />
-                </div>
-              </div>
+          {/* Main Workspace */}
+          <div className="h-full">
+            {activeTab === 'room' && (
+              <div id="roomWorkSpace" className="flex flex-col h-full justify-center items-center gap-6 pointer-events-none">
 
-              {/* Devices Grid / List */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
-                {roomDevices.length === 0 && (
-                  <div style={{
-                    gridColumn: '1 / -1',
-                    textAlign: 'center',
-                    padding: '40px 20px',
-                    backgroundColor: '#0f172a',
-                    borderRadius: '16px',
-                    border: '1px solid #1e293b',
-                    color: '#64748b',
-                    fontSize: '14px'
-                  }}>
-                    No devices connected to this room yet.
-                  </div>
-                )}
+                <span id="roomIntroText" className="opacity-0 h-1/6 flex justify-center items-center text-slate-300 text-3xl">If u want one time setup and seemeless connectivity , u are at right place </span>
 
-                {roomDevices.filter((device) => device.deviceId !== getDeviceID())
-                  .map((device) => {
-                    const isCurrentDevice = device.deviceId === getDeviceID();
-                    const isConnected = roomPeerStatus[device.deviceId];
+                <div id="roomSelectionBox" className="opacity-0 w-4/5 h-5/6  border-4 rounded-t-4xl    shadow-2xl [mask-image:linear-gradient(to_bottom,black_50%,transparent_100%)]">
 
-                    return (
-                      <div
-                        key={device.deviceId}
-                        style={{
-                          padding: '20px',
-                          backgroundColor: '#0f172a',
-                          borderRadius: '16px',
-                          border: isConnected ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid #1e293b',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '16px',
-                          boxShadow: isConnected ? '0 0 15px rgba(56, 189, 248, 0.05)' : 'none'
-                        }}
-                      >
-                        {/* Device Header */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                          <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {/* this is the create and join room card  */}
+                  <div className="grid grid-cols-2 gap-5 p-7">
 
-                              <DeviceIcon
-                                deviceType={
-                                  remoteDeviceInfo[device.deviceId]?.deviceType
-                                  ?? "unknown"
-                                }
-                                size={30}
-                              />
+                    {/* CREATE ROOM */}
+                    <div className="relative overflow-hidden rounded-[20px] border border-[rgba(140,180,220,0.12)] bg-gradient-to-b from-[#101a26] to-[#13202f] p-7">
 
-                              <span style={{
-                                width: '8px',
-                                height: '8px',
-                                borderRadius: '50%',
-                                backgroundColor: device.online ? '#10b981' : '#f43f5e'
-                              }} />
-                              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#f8fafc' }}>
-                                {device.deviceName}
-                              </h3>
-                            </div>
-                            <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
-                              {device.isHost && (
-                                <span style={{ fontSize: '10px', backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>
-                                  HOST
-                                </span>
-                              )}
-                              {isCurrentDevice && (
-                                <span style={{ fontSize: '10px', backgroundColor: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>
-                                  YOU
-                                </span>
-                              )}
-                            </div>
+                      {/* subtle glow */}
+                      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(320px_160px_at_15%_-10%,rgba(62,232,255,0.08),transparent_70%)]" />
+
+                      <div className="relative">
+
+                        {/* label */}
+                        <div className="mb-[18px] flex items-center gap-[9px] font-mono text-[11px] uppercase tracking-[0.14em] text-[#5c6c82]">
+                          <span className="h-[6px] w-[6px] rounded-full bg-[#3ee8ff] shadow-[0_0_6px_#3ee8ff]" />
+                          New session
+                        </div>
+
+                        {/* heading */}
+                        <h2 className="mb-2 font-['Sora'] text-[19px] font-semibold text-[#eaf2fb]">
+                          Create a room
+                        </h2>
+
+                        {/* description */}
+                        <p className="mb-6 text-[13.5px] leading-[1.55] text-[#93a5bd]">
+                          Generates a one-time 6-digit code. Share it with any device you
+                          want to bridge into this room.
+                        </p>
+
+                        {/* create button */}
+                        <button onClick={() => {
+                          createRoom()
+                          createRoomButtonAnimation()
+                        }} className="flex w-full items-center justify-center gap-2 rounded-[11px] bg-gradient-to-br from-[#3ee8ff] via-[#7fd8ff] to-[#4f8cff] px-5 py-[13px] text-[14px] font-semibold text-[#02141c] shadow-[0_8px_26px_-8px_rgba(62,232,255,0.55)] transition hover:shadow-[0_10px_32px_-6px_rgba(62,232,255,0.7)] active:scale-[0.98]">
+
+                          <span className="text-[20px] leading-none">+</span>
+
+                          Create room
+                        </button>
+
+                        {/* generated code */}
+                        <div className="mt-[22px]">
+
+                          <div className="mb-4 flex flex-wrap gap-2">
+
+                            {[0, 1, 2, 3, 4, 5].map((index) => (
+                              <div
+                                key={index}
+                                className={`min-w-[54px] min-h-[64px] rounded-[10px] border border-[rgba(140,200,255,0.24)] bg-[rgba(62,232,255,0.06)] px-[14px] py-[10px] text-center font-mono text-[30px] font-semibold tracking-[0.02em] text-[#eaf2fb] [text-shadow:0_0_20px_rgba(62,232,255,0.35)] ${index === 3 ? "ml-1" : ""
+                                  }`}
+                              >
+                                {roomCodeCreated?.[index] || ""}
+                              </div>
+                            ))}
+
                           </div>
 
-                          {/* Connection State / Button */}
-                          {!isCurrentDevice && device.online && (
-                            isConnected ? (
-                              <button
-                                onClick={() => disconnectFromRoomDevice(device.deviceId)}
-                                style={{
-                                  padding: '6px 12px',
-                                  borderRadius: '8px',
-                                  border: '1px solid rgba(244, 63, 94, 0.3)',
-                                  backgroundColor: 'rgba(244, 63, 94, 0.1)',
-                                  color: '#f43f5e',
-                                  fontSize: '12px',
-                                  fontWeight: '600',
-                                  cursor: 'pointer'
-                                }}
-                              >
-                                Disconnect
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => connectToRoomDevice(device)}
-                                style={{
-                                  padding: '6px 12px',
-                                  borderRadius: '8px',
-                                  border: 'none',
-                                  backgroundColor: '#2563eb',
-                                  color: 'white',
-                                  fontSize: '12px',
-                                  fontWeight: '600',
-                                  cursor: 'pointer'
-                                }}
-                              >
-                                Connect
-                              </button>
-                            )
-                          )}
+                          {/* copy/share */}
+                          <div className="flex gap-[10px]">
+
+                            <button className="flex w-auto items-center justify-center gap-2 rounded-[9px] border border-[rgba(140,180,220,0.12)] bg-[rgba(255,255,255,0.03)] px-[14px] py-[9px] text-[12.5px] font-semibold text-[#eaf2fb] transition hover:border-[rgba(140,200,255,0.24)] hover:bg-[rgba(255,255,255,0.06)]">
+                              Copy code
+                            </button>
+
+                            <button className="flex w-auto items-center justify-center gap-2 rounded-[9px] border border-[rgba(140,180,220,0.12)] bg-[rgba(255,255,255,0.03)] px-[14px] py-[9px] text-[12.5px] font-semibold text-[#eaf2fb] transition hover:border-[rgba(140,200,255,0.24)] hover:bg-[rgba(255,255,255,0.06)]">
+                              Share
+                            </button>
+
+                          </div>
+
                         </div>
 
-                        {/* Card Actions (Text & Send File) */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: 'auto' }}>
-                          <input
-                            placeholder={`Message to ${device.deviceName}...`}
-                            value={deviceMessages?.[device.deviceId] || ''}
-                            onFocus={() => {
-                              if (!isCurrentDevice && device.online) {
-                                const channel =
-                                  roomDataChannels.current.get(device.deviceId);
-
-                                if (channel?.readyState === "open") {
-                                  resetRoomPeerTimer(device.deviceId);
-                                }
-
-                                ensureRoomConnection(device);
-                              }
-                            }}
-                            onChange={(e) => {
-                              const value = e.target.value;
-
-                              setDeviceMessages((prev) => ({
-                                ...prev,
-                                [device.deviceId]: value,
-                              }));
-                            }}
+                      </div>
+                    </div>
 
 
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                const text = deviceMessages?.[device.deviceId];
-                                if (text && text.trim()) {
-                                  // Send the message
-                                  sendRoomMessage(device, text);
+                    {/* JOIN ROOM */}
+                    <div className="relative overflow-hidden rounded-[20px] border border-[rgba(140,180,220,0.12)] bg-gradient-to-b from-[#101a26] to-[#13202f] p-7">
 
-                                  // Clear the input for this specific device
-                                  setDeviceMessages((prev) => ({
-                                    ...prev,
-                                    [device.deviceId]: "",
-                                  }));
-                                }
-                              }
-                            }}
+                      {/* subtle glow */}
+                      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(320px_160px_at_15%_-10%,rgba(62,232,255,0.08),transparent_70%)]" />
 
+                      <div className="relative">
 
-                            style={{
-                              width: '100%',
-                              boxSizing: 'border-box',
-                              padding: '8px 12px',
-                              borderRadius: '8px',
-                              border: '1px solid #1e293b',
-                              backgroundColor: '#090d16',
-                              color: '#f8fafc',
-                              fontSize: '12px',
-                              outline: 'none'
-                            }}
+                        {/* label */}
+                        <div className="mb-[18px] flex items-center gap-[9px] font-mono text-[11px] uppercase tracking-[0.14em] text-[#5c6c82]">
+                          <span className="h-[6px] w-[6px] rounded-full bg-[#3ee8ff] shadow-[0_0_6px_#3ee8ff]" />
+                          Join session
+                        </div>
+
+                        {/* heading */}
+                        <h2 className="mb-2 font-['Sora'] text-[19px] font-semibold text-[#eaf2fb]">
+                          Join a room
+                        </h2>
+
+                        {/* description */}
+                        <p className="mb-6 text-[13.5px] leading-[1.55] text-[#93a5bd]">
+                          Enter the 6-digit code shown on the other device to bridge into
+                          their room.
+                        </p>
+
+                        {/* OTP */}
+                        <div className="mb-5 flex gap-2">
+                          <CodeInput onComplete={handleCodeComplete}
+                          // nextFocusRef={joinButtonRef} 
                           />
 
-                          {!isCurrentDevice && device.online && isConnected && (
-                            <button
-                              onClick={() => {
-                                if (!selectedFile) {
-                                  console.log("No file selected");
-                                  return;
-                                }
-                                sendFileToRoomDevice(device.deviceId, selectedFile);
-                              }}
-                              style={{
-                                width: '100%',
-                                padding: '8px',
-                                borderRadius: '8px',
-                                border: 'none',
-                                backgroundColor: selectedFile ? '#059669' : '#1e293b',
-                                color: selectedFile ? '#ffffff' : '#64748b',
-                                fontSize: '12px',
-                                fontWeight: '600',
-                                cursor: selectedFile ? 'pointer' : 'not-allowed',
-                                transition: 'all 0.2s'
-                              }}
-                            >
-                              Send Selected File
-                            </button>
-                          )}
                         </div>
+
+                        {/* join */}
+                        <button ref={joinButtonRef}
+                          onClick={joinRoom}
+                          className="flex w-full items-center justify-center gap-2 rounded-[11px] bg-gradient-to-br from-[#3ee8ff] via-[#7fd8ff] to-[#4f8cff] px-5 py-[13px] text-[14px] font-semibold text-[#02141c] shadow-[0_8px_26px_-8px_rgba(62,232,255,0.55)] transition hover:shadow-[0_10px_32px_-6px_rgba(62,232,255,0.7)] active:scale-[0.98]">
+
+                          <span className="text-[18px]">→</span>
+
+                          Join room
+                        </button>
+
+                        {/* helper */}
+                        <p className="mt-3 text-[12.5px] text-[#5c6c82]">
+                          Codes are 6 digits and expire when the room closes.
+                        </p>
+
                       </div>
-                    );
-                  })}
-              </div>
+                    </div>
 
-              {/* Room Messages */}
-              <div
-                style={{
-                  padding: "20px",
-                  backgroundColor: "#0f172a",
-                  borderRadius: "16px",
-                  border: "1px solid #1e293b",
-                }}
-              >
-                <h3
-                  style={{
-                    margin: "0 0 12px",
-                    fontSize: "14px",
-                    color: "#f8fafc",
-                  }}
-                >
-                  Room Messages
-                </h3>
-
-                {receivedMessages.length === 0 ? (
-                  <div
-                    style={{
-                      color: "#64748b",
-                      fontSize: "13px",
-                    }}
-                  >
-                    No messages yet.
                   </div>
-                ) : (
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "8px",
-                    }}
-                  >
-                    {receivedMessages.map((msg, index) => (
-                      <div
-                        key={index}
-                        style={{
-                          padding: "8px 12px",
-                          backgroundColor: "#090d16",
-                          borderRadius: "8px",
-                          color: "#cbd5e1",
-                          fontSize: "13px",
-                        }}
-                      >
-                        {msg}
-                      </div>
-                    ))}
+
+                  <div className="mt-16">
+                    <span id="roomSelectionText-1" className="opacity-0 h-fit bg-gray-700 flex justify-center items-center text-slate-300 text-3xl" >Just create a room, copy the code and paste it on the other device</span>
+                    <span id="roomSelectionText-2" className="opacity-0 h-fit flex justify-center items-center text-slate-300 text-3xl" >Congrats!! U just created a room <br />Now paste the code on other device and witness the happening</span>
                   </div>
-                )}
+                </div>
+
+
               </div>
-            </div>
-          )}
+            )}
 
-          {/* P2P Workspace (Blank as requested) */}
-          {activeTab === 'p2p' && (
-            <div style={{
-              minHeight: '260px',
-              backgroundColor: '#0f172a',
-              borderRadius: '16px',
-              border: '1px solid #1e293b'
-            }}>
-              {/* Blank P2P Div Container */}
-            </div>
-          )}
-
-
+            {/* P2P Workspace (Blank as requested) */}
+            {activeTab === 'p2p' && (
+              <div className="min-h-[260px] rounded-2xl border border-slate-800 bg-slate-900">
+                {/* Blank P2P Div Container */}
+              </div>
+            )}
+          </div>
         </div>
-      </main>
+
+      </div>
+
 
     </div>
   );

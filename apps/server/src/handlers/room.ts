@@ -122,6 +122,16 @@ export function handleDeviceDisconnect(
             continue;
         }
 
+        if (room.hostDeviceId === deviceId && room.devices.size === 1) {
+            rooms.delete(room.code);
+
+            console.log(
+                `🗑️ Room ${room.code} deleted — host left and no other devices were present`
+            );
+
+            continue;
+        }
+
         roomDevice.online = false;
         roomDevice.clientId = null;
 

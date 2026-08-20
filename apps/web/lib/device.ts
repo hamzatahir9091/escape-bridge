@@ -22,7 +22,7 @@ export function getDeviceName(): string | null {
   return localStorage.getItem(DEVICE_NAME_KEY);
 }
 
-export function setDeviceName(name: string) {
+export function setDeviceNameInLocalstorage(name: string) {
   localStorage.setItem(DEVICE_NAME_KEY, name);
 }
 

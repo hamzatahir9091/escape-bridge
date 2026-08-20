@@ -152,7 +152,7 @@ wss.on("connection", (socket: WebSocket) => {
                 continue;
             }
 
-            // Tell rooms that this device went offline
+            // Tell rooms that this device went offline  or delete any  room if extra
             handleDeviceDisconnect(deviceId, clientId);
 
             // Remove from currently-connected devices

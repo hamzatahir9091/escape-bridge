@@ -52,6 +52,8 @@ wss.on("connection", (socket: WebSocket) => {
         const data = JSON.parse(message.toString()) as ClientMessage;
 
         switch (data.type) {
+
+            // SESION CASES
             case MessageType.CREATE_SESSION: {
                 handleCreateSession(socket, clientId);
                 break;
@@ -77,6 +79,8 @@ wss.on("connection", (socket: WebSocket) => {
                 handleIceCandidate(data);
                 break;
             }
+
+            // ROOM CASES
 
             case MessageType.DEVICE_REGISTER: {
                 handleDeviceRegister(socket, clientId, data)

@@ -17,7 +17,6 @@ export function createPeerConnection(
   peer.onicecandidate = (event) => {
     if (event.candidate) {
       onIceCandidate(event.candidate);
-      console.log('ice candidate sent to server from browser')
     }
   };
 
@@ -28,8 +27,6 @@ export async function createOffer(peer: RTCPeerConnection) {
   const offer = await peer.createOffer()
   await peer.setLocalDescription(offer);
 
-  console.log("iceGatheringState =", peer.iceGatheringState);
-
   return offer;
 }
 
@@ -39,21 +36,12 @@ export async function setRemoteOffer(
 ) {
   await peer.setRemoteDescription(offer);
 
-  console.log("Remote offer set");
 }
 
 
 export async function createAnswer(peer: RTCPeerConnection) {
   const answer = await peer.createAnswer()
   await peer.setLocalDescription(answer);
-
-  console.log("iceGatheringState =", peer.iceGatheringState);
-
-  setTimeout(() => {
-    console.log("After 2 seconds:", peer.iceGatheringState);
-  }, 2000);
-
-  console.log("Local description set inside webrtc");
 
   return answer;
 }
@@ -64,8 +52,6 @@ export async function setRemoteAnswer(
   answer: RTCSessionDescriptionInit
 ) {
   await peer.setRemoteDescription(answer);
-
-  console.log("Remote answer set");
 }
 
 
@@ -75,8 +61,6 @@ export async function addIceCandidate(
   candidate: RTCIceCandidateInit
 ) {
   await peer.addIceCandidate(candidate);
-
-  console.log("ICE candidate added");
 }
 
 
@@ -96,13 +80,11 @@ export function createDataChannel(
 
   // fires only once on channel creation
   channel.onopen = () => {
-    console.log("🟢 DataChannel OPEN");
     onOpen();
   };
 
   // fires only once on channel dead
   channel.onclose = () => {
-    console.log("🔴 DataChannel CLOSED");
     onClose()
   };
 
@@ -200,9 +182,6 @@ export async function sendFile(
       sentBytes,
       file.size
     );
-    console.log(
-      `📤 Chunk ${index + 1}/${totalChunks}`
-    );
   }
 
   channel.send(
@@ -214,14 +193,9 @@ export async function sendFile(
     })
   );
 
-  console.log(
-    `✅ File sent: ${file.name}`
-  );
-
 }
 
 // FILE CHUNKING LOGIC 
 
 const FILE_CHUNK_SIZE = 64 * 1024;
 const MAX_BUFFERED_AMOUNT = 4 * 1024 * 1024
-

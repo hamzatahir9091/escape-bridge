@@ -59,3 +59,14 @@ p {
 .neon-font {
   font-family: var(--font-neon-club);
 }
+
+
+.masked-element {
+  /* Define the variables (Start at 100% visible) */
+  --mask-solid: 100%;
+  --mask-fade: 100%;
+
+  /* Apply the mask using variables */
+  -webkit-mask-image: linear-gradient(to bottom, black var(--mask-solid), transparent var(--mask-fade));
+  mask-image: linear-gradient(to bottom, black var(--mask-solid), transparent var(--mask-fade));
+}

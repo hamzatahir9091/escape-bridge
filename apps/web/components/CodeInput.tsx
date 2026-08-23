@@ -10,10 +10,6 @@ export default function CodeInput({ length = 6, onComplete }: CodeInputProps) {
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
 
-  useEffect(() => {
-    inputRefs.current[0]?.focus();
-  }, []);
-
   // Handle typing a single digit
   const handleChange = (e: ChangeEvent<HTMLInputElement>, index: number): void => {
     const value = e.target.value;

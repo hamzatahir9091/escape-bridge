@@ -37,8 +37,6 @@ import { Flip } from "gsap/Flip";
 gsap.registerPlugin(Flip);
 
 
-
-
 type P2PMessage = {
   id: string;
   text: string;
@@ -154,9 +152,7 @@ export default function Home() {
   const [deviceFiles, setDeviceFiles] = useState<Record<string, File | null>>({});
   const [collapsedIds, setCollapsedIds] = useState<Record<string, boolean>>({});
 
-
-
-
+  const [myDeviceName, setMyDeviceName] = useState<string | null>("");
 
   useLayoutEffect(() => {
     console.log('use layout effect running ',)
@@ -169,6 +165,8 @@ export default function Home() {
 
       setDeviceNameState(info.deviceType);
 
+      console.log('hasDeviceID()', hasDeviceID())
+
       setNeedsDeviceSetup(true);
       setIsNewUser(true)
       setIsSettled(true);
@@ -176,6 +174,7 @@ export default function Home() {
       return;
     }
 
+    console.log('hasDeviceID()', hasDeviceID())
     setIsSettled(true);
 
   }, [])
@@ -186,9 +185,7 @@ export default function Home() {
     if (hasDeviceID()) {
       connect()
     }
-
   }, [])
-
 
 
   // WHOLE IMPLEMENTATION IS BELOW
@@ -204,6 +201,9 @@ export default function Home() {
 
       const deviceId = getDeviceID();
       const deviceName = getDeviceName()
+
+      
+      setMyDeviceName(deviceName);
 
       socket.current!.send(
         JSON.stringify({
@@ -1432,7 +1432,7 @@ export default function Home() {
       payload: {
         messageId,
         senderDeviceId: getDeviceID(),
-        senderDeviceName: getDeviceName(),
+        senderDeviceName: myDeviceName,
         text: text.trim(),
       },
     });
@@ -1451,7 +1451,7 @@ export default function Home() {
       {
         id: messageId,
         senderDeviceId: getDeviceID(),
-        senderDeviceName: getDeviceName() ?? "Unknown device",
+        senderDeviceName: myDeviceName ?? "Unknown device",
         text: text.trim(),
         direction: "sent",
       },
@@ -1665,9 +1665,6 @@ export default function Home() {
     }
     setDeviceNameInLocalstorage(name);
 
-    // This creates and saves the device ID for the first time
-    getDeviceID();
-
     connect();
   };
 
@@ -1794,13 +1791,20 @@ export default function Home() {
 
       }
 
-      // run tis animation when we do no need device setup
+      // run tis animation when we do not need device setup
       if (!isNewUser) {
 
         console.log('refresh animation working',)
 
+
         RefreshTL.current = gsap.timeline({
-          paused: true
+          paused: true,
+          onStart: () => {
+            console.log('refresh animation started ---------------------',)
+          },
+          onComplete: () => {
+            console.log('refresh animation complet #####################',)
+          }
         });
 
         RefreshTL.current
@@ -2450,80 +2454,178 @@ export default function Home() {
                       })}
                   </div>
 
+
                   {/* Room Messages */}
-                  {/* <div id="RoomMessages" className="h-1/2 rounded-2xl border border-slate-800 p-5 opacity-0">
+                  <div id="RoomMessages" className="flex h-1/2 flex-col rounded-2xl border border-slate-800/80 bg-[#080d16]/80 p-5 shadow-[0_10px_40px_rgba(0,0,0,0.18)]">
 
-                    <h3 className="mb-3 text-sm text-slate-50">
-                      Room Messages
-                    </h3>
+                    {/* Header */}
+                    <div className="mb-4 flex items-center justify-between">
+                      <div>
+                        <h3 className="text-sm font-semibold text-slate-100">
+                          Room Messages
+                        </h3>
 
-                    {receivedMessages.length === 0 ? (
-                      <div className="text-[13px] text-slate-500">
-                        No messages yet.
+                        <p className="mt-1 text-[11px] text-slate-500">
+                          Messages from devices in this room
+                        </p>
                       </div>
-                    ) : (
-                      <div className="flex flex-col gap-2">
-                        {receivedMessages.map((msg, index) => (
-                          <div
-                            key={index}
-                            className="rounded-lg bg-[#090d16] px-3 py-2 text-[13px] text-slate-300"
-                          >
-                            {msg.text}
+
+                      <div className="rounded-full border border-slate-800 bg-slate-900/70 px-2.5 py-1 text-[10px] font-medium text-slate-500">
+                        {roomMessages.length}{" "}
+                        {roomMessages.length === 1 ? "message" : "messages"}
+                      </div>
+                    </div>
+
+                    {/* Messages */}
+                    <div className="flex flex-1 flex-col gap-3 overflow-y-auto pr-1">
+
+                      {roomMessages.length === 0 ? (
+
+                        <div className="flex flex-1 flex-col items-center justify-center text-center">
+
+                          <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl border border-slate-800 bg-slate-900/70 text-slate-600">
+                            <svg
+                              viewBox="0 0 24 24"
+                              className="h-5 w-5"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.7"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M8 10h8M8 14h5m7-2a8 8 0 11-15.3 3.3L3 21l5.7-1.7A8 8 0 0021 12z"
+                              />
+                            </svg>
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </div> */}
 
-                  {/* Room Messages */}
-                  <div className="h-1/2 rounded-2xl border border-slate-800 p-5">
+                          <p className="text-xs font-medium text-slate-500">
+                            No messages yet
+                          </p>
 
-                    <h3 className="mb-3 text-sm text-slate-50">
-                      Room Messages
-                    </h3>
+                          <p className="mt-1 text-[11px] text-slate-700">
+                            Messages from connected devices will appear here
+                          </p>
 
-                    {roomMessages.length === 0 ? (
+                        </div>
 
-                      <div className="text-[13px] text-slate-500">
-                        No messages yet.
-                      </div>
+                      ) : (
 
-                    ) : (
-
-                      <div className="flex max-h-64 flex-col gap-2 overflow-y-auto">
-
-                        {roomMessages.map((msg) => {
+                        roomMessages.map((msg) => {
 
                           const isYou =
                             msg.senderDeviceId === getDeviceID();
 
                           return (
                             <div
-                              key={msg.id}
-                              className={`flex flex-col rounded-lg px-3 py-2 text-[13px] ${isYou
-                                  ? "ml-auto bg-sky-500/[0.08] text-sky-200"
-                                  : "mr-auto bg-[#090d16] text-slate-300"
+                              key={`${msg.senderDeviceId}-${msg.text}-${roomMessages.indexOf(msg)}`}
+                              className={`group flex w-full items-center gap-2 ${isYou ? "justify-end" : "justify-start"
                                 }`}
                             >
 
-                              <span className="mb-1 text-[10px] font-semibold text-slate-500">
-                                {isYou ? "You" : msg.senderDeviceName}
-                              </span>
+                              {/* COPY — YOUR MESSAGE */}
+                              {isYou && (
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(msg.text);
+                                  }}
+                                  title="Copy message"
+                                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-800/80 bg-slate-900/50 text-slate-600 opacity-0 transition-all duration-200 hover:border-slate-700 hover:bg-slate-800 hover:text-slate-300 group-hover:opacity-100"
+                                >
+                                  <svg
+                                    viewBox="0 0 24 24"
+                                    className="h-3.5 w-3.5"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="1.8"
+                                  >
+                                    <rect
+                                      x="9"
+                                      y="9"
+                                      width="11"
+                                      height="11"
+                                      rx="2"
+                                    />
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      d="M15 9V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7a2 2 0 002 2h3"
+                                    />
+                                  </svg>
+                                </button>
+                              )}
 
-                              <span>
-                                {msg.text}
-                              </span>
+                              {/* MESSAGE */}
+                              <div
+                                className={`max-w-[75%] rounded-2xl px-3.5 py-2.5 ${isYou
+                                  ? "rounded-br-md border border-sky-400/20 bg-sky-500/[0.10]"
+                                  : "rounded-bl-md border border-slate-800 bg-[#0c121d]"
+                                  }`}
+                              >
+
+                                {/* Sender */}
+                                <div
+                                  className={`mb-1 text-[10px] font-semibold ${isYou
+                                    ? "text-sky-400/80"
+                                    : "text-slate-500"
+                                    }`}
+                                >
+                                  {isYou ? "You" : msg.senderDeviceName}
+                                </div>
+
+                                {/* Text */}
+                                <p
+                                  className={`whitespace-pre-wrap break-words text-[13px] leading-relaxed ${isYou
+                                    ? "text-slate-200"
+                                    : "text-slate-300"
+                                    }`}
+                                >
+                                  {msg.text}
+                                </p>
+
+                              </div>
+
+                              {/* COPY — INCOMING MESSAGE */}
+                              {!isYou && (
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(msg.text);
+                                  }}
+                                  title="Copy message"
+                                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-800/80 bg-slate-900/50 text-slate-600 opacity-0 transition-all duration-200 hover:border-slate-700 hover:bg-slate-800 hover:text-slate-300 group-hover:opacity-100"
+                                >
+                                  <svg
+                                    viewBox="0 0 24 24"
+                                    className="h-3.5 w-3.5"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="1.8"
+                                  >
+                                    <rect
+                                      x="9"
+                                      y="9"
+                                      width="11"
+                                      height="11"
+                                      rx="2"
+                                    />
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      d="M15 9V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7a2 2 0 002 2h3"
+                                    />
+                                  </svg>
+                                </button>
+                              )}
 
                             </div>
                           );
+                        })
 
-                        })}
+                      )}
 
-                      </div>
-
-                    )}
-
+                    </div>
                   </div>
+
 
                 </div>
 

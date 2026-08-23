@@ -1,5 +1,5 @@
 import { AnswerMessage, IceCandidateMessage, OfferMessage } from "@bridge/shared";
-import { clients } from "../store/state";
+import { clients } from "../store/state.js";
 
 
 

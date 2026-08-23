@@ -1,6 +1,6 @@
 import { JoinSessionMessage, MessageType } from "@bridge/shared";
-import { sessions, clients } from "../store/state";
-import { generateSessionCode } from "../utils/session";
+import { sessions, clients } from "../store/state.js";
+import { generateSessionCode } from "../utils/session.js";
 import { WebSocket } from "ws";
 
 

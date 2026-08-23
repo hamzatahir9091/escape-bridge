@@ -74,7 +74,7 @@ export default function Intro({
                             }
                         }}
                         placeholder="Give it a name..."
-                        className="mb-2 box-border w-full rounded-[10px] border border-[#334155] bg-[#020617] px-[14px] py-3 text-sm text-[#f8fafc] outline-none placeholder:text-[#64748b] focus:border-[#2563eb]"
+                        className="mb-2 box-border w-full rounded-[10px] border border-[#334155] bg-[#020617] px-3.5 py-3 text-sm text-[#f8fafc] outline-none placeholder:text-[#64748b] focus:border-[#2563eb]"
                     />
 
                     <p className="mb-4 text-xs text-[#64748b]">

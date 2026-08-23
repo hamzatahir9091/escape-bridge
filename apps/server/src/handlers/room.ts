@@ -5,8 +5,8 @@ import {
 } from "@bridge/shared";
 
 import { WebSocket } from "ws";
-import { rooms, Room, clients } from "../store/state";
-import { generateSessionCode } from "../utils/generateCode";
+import { rooms, Room, clients } from "../store/state.js";
+import { generateSessionCode } from "../utils/generateCode.js";
 
 export function handleCreateRoom(socket: WebSocket, clientId: string, deviceId: string, deviceName: string) {
 

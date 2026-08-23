@@ -6,7 +6,7 @@ import {
 } from "@bridge/shared";
 
 import { WebSocket } from "ws";
-import { clients, rooms } from "../store/state";
+import { clients, rooms } from "../store/state.js";
 
 function findRoomTarget(
   senderClientId: string,

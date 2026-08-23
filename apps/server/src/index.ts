@@ -2,13 +2,13 @@ import express from "express";
 import { WebSocket, WebSocketServer } from "ws";
 import { v4 as uuidv4 } from "uuid"
 import { MessageType, ClientMessage } from "@bridge/shared";
-import { clients, sessions } from "./store/state";
-import { handleCreateSession, handleJoinSession } from "./handlers/session";
-import { handleAnswer, handleIceCandidate, handleOffer } from "./handlers/webrtc";
-import { handleDeviceRegister } from "./handlers/device";
-import { devices } from "./store/devices";
-import { handleCreateRoom, handleJoinRoom, handleDeviceDisconnect } from "./handlers/room";
-import { handleRoomOffer, handleRoomAnswer, handleRoomIceCandidate, } from "./handlers/roomWebrtc";
+import { clients, sessions } from "./store/state.js";
+import { handleCreateSession, handleJoinSession } from "./handlers/session.js";
+import { handleAnswer, handleIceCandidate, handleOffer } from "./handlers/webrtc.js";
+import { handleDeviceRegister } from "./handlers/device.js";
+import { devices } from "./store/devices.js";
+import { handleCreateRoom, handleJoinRoom, handleDeviceDisconnect } from "./handlers/room.js";
+import { handleRoomOffer, handleRoomAnswer, handleRoomIceCandidate, } from "./handlers/roomWebrtc.js";
 
 const app = express();
 

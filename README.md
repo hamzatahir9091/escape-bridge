@@ -1,159 +1,794 @@
-# Turborepo starter
+# 🌉 Escape Bridge
 
-This Turborepo starter is maintained by the Turborepo core team.
+> **A simple bridge between your devices.**
 
-## Using this example
+Escape Bridge is a local-first, peer-to-peer device communication and file-sharing app.
 
-Run the following command:
+The idea is pretty simple:
 
-```sh
-npx create-turbo@latest
+**Your devices should be able to talk to each other without needing an account, installing some random desktop app, or uploading everything to a server first.**
+
+Need to send a message from your phone to your laptop?
+
+Need to move a file from your PC to another device?
+
+Just open Bridge, connect the devices, and transfer.
+
+No accounts.
+No complicated setup.
+Just a temporary bridge between your devices.
+
+---
+
+## ✨ Why We Built This
+
+We've all had that moment:
+
+> "I just need to send this file from my phone to my laptop."
+
+And then you end up doing one of these:
+
+* Send it to yourself on WhatsApp
+* Upload it to Google Drive
+* Email it
+* Use a USB cable
+* Install some file-transfer application
+* Search for an AirDrop alternative
+* Create an account somewhere
+
+That's way more work than it should be.
+
+So we wanted to build something different.
+
+### The idea
+
+**Open Bridge → connect your devices → send.**
+
+That's it.
+
+The long-term goal is to make Bridge a **Universal Device Bridge** that works across:
+
+* 📱 Android
+* 🍎 iPhone
+* 💻 Windows
+* 🐧 Linux
+* 🍎 macOS
+
+The project is intentionally built around temporary connections instead of permanent accounts.
+
+---
+
+# 🚀 Features
+
+### Current
+
+* 🔗 Connect devices through a temporary session
+* 🔢 Join using a room/code
+* 📱 Device identification and custom device names
+* 💬 Real-time messaging
+* 👥 Multi-device rooms
+* 📡 WebSocket signaling
+* 🔄 WebRTC peer-to-peer connections
+* 📁 Peer-to-peer file transfer
+* 🌐 STUN support for establishing connections
+* ⚡ Real-time device communication
+* 🖥️ Responsive web interface
+
+### Planned
+
+* 🔐 End-to-end encryption
+* 📦 Better large-file handling/chunking
+* ☁️ Fallback cloud relay when direct P2P is impossible
+* 📱 Better mobile experience
+* 🔗 QR-code based pairing
+* 📋 Temporary shared clipboard
+* 📂 Shared temporary file box
+* 🔒 Automatic room cleanup
+
+---
+
+# 🧠 How It Works
+
+Bridge uses a combination of **WebSockets** and **WebRTC**.
+
+The important distinction is:
+
+### WebSocket
+
+The backend is mainly used for **signaling**.
+
+It helps devices discover and exchange the information needed to establish a WebRTC connection.
+
+```text
+Device A
+   │
+   │ WebSocket
+   ▼
+Bridge Server
+   │
+   │ WebSocket
+   ▼
+Device B
 ```
 
-## What's inside?
+### WebRTC
 
-This Turborepo includes the following packages/apps:
+Once the connection is established, devices can communicate directly.
 
-### Apps and Packages
-
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo build
+```text
+Device A
+    │
+    │
+    │   WebRTC
+    │
+    ▼
+Device B
 ```
 
-Without global `turbo`, use your package manager:
+So the server doesn't need to handle every message or file transfer.
 
-```sh
-cd my-turborepo
-npx turbo build
-npm dlx turbo build
-npm exec turbo build
+The goal is:
+
+```text
+              Signaling
+Device A ──────────────────► Server
+Device B ◄────────────────── Server
+
+
+              P2P
+Device A ◄══════════════════► Device B
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+The server helps the devices meet.
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+**The devices do the actual communication.**
 
-```sh
-turbo build --filter=docs
+---
+
+# 🏗️ Project Structure
+
+Escape Bridge is organized as a **Turborepo monorepo**.
+
+```text
+escape-bridge/
+│
+├── apps/
+│   │
+│   ├── web/
+│   │   ├── app/
+│   │   ├── components/
+│   │   ├── hooks/
+│   │   ├── lib/
+│   │   ├── public/
+│   │   ├── package.json
+│   │   └── ...
+│   │
+│   └── server/
+│       ├── src/
+│       │   ├── index.ts
+│       │   └── ...
+│       ├── dist/
+│       ├── package.json
+│       └── ...
+│
+├── packages/
+│   │
+│   └── shared/
+│       ├── src/
+│       │   ├── protocol.ts
+│       │   └── ...
+│       ├── package.json
+│       └── ...
+│
+├── package.json
+├── package-lock.json
+├── turbo.json
+├── tsconfig.json
+└── README.md
 ```
 
-Without global `turbo`:
+---
 
-```sh
-npx turbo build --filter=docs
-npm exec turbo build --filter=docs
-npm exec turbo build --filter=docs
+# 📁 Understanding the Structure
+
+## `apps/web`
+
+This is the **frontend**.
+
+It's built with:
+
+* Next.js
+* TypeScript
+* Tailwind CSS
+* React
+* GSAP
+
+Everything the user interacts with lives here.
+
+Examples:
+
+```text
+apps/web/
+├── app/
+├── components/
+├── hooks/
+└── lib/
 ```
 
-### Develop
+### `app/`
 
-To develop all apps and packages, run the following command:
+Contains the Next.js application and routes.
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+### `components/`
 
-```sh
-cd my-turborepo
-turbo dev
+Reusable UI components.
+
+For example:
+
+* Device cards
+* Chat messages
+* File transfer UI
+* Room UI
+* Connection interface
+
+### `hooks/`
+
+Custom React hooks.
+
+Used for things like:
+
+* WebSocket connections
+* WebRTC logic
+* Room state
+* Device state
+
+### `lib/`
+
+Reusable frontend logic and utilities.
+
+---
+
+# 🖥️ `apps/server`
+
+This is the **backend/signaling server**.
+
+It uses:
+
+* Node.js
+* Express
+* WebSocket (`ws`)
+* TypeScript
+
+The server is **not intended to be the main data-transfer server**.
+
+Its main job is helping devices establish connections.
+
+For example:
+
+```text
+CREATE_ROOM
+     ↓
+JOIN_ROOM
+     ↓
+DEVICE_REGISTER
+     ↓
+Exchange WebRTC information
+     ↓
+WebRTC connection established
+     ↓
+Direct communication
 ```
 
-Without global `turbo`, use your package manager:
+---
 
-```sh
-cd my-turborepo
-npx turbo dev
-npm exec turbo dev
-npm exec turbo dev
+# 📦 `packages/shared`
+
+This package contains code that needs to be shared between the frontend and backend.
+
+The biggest example is the **communication protocol**.
+
+Instead of defining a message differently in the frontend and backend:
+
+```ts
+{
+  type: "CREATE_ROOM"
+}
 ```
 
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+we define the protocol once and share it.
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+That means both applications understand the same message structure.
 
-```sh
-turbo dev --filter=web
+```text
+             packages/shared
+                   │
+          ┌────────┴────────┐
+          ▼                 ▼
+      apps/web          apps/server
 ```
 
-Without global `turbo`:
+This prevents the frontend and backend from slowly developing different ideas about what messages mean.
 
-```sh
-npx turbo dev --filter=web
-npm exec turbo dev --filter=web
-npm exec turbo dev --filter=web
+---
+
+# 🔄 How the Apps Work Together
+
+At a high level:
+
+```text
+                    ┌─────────────────┐
+                    │  Shared Package │
+                    │                 │
+                    │ Protocol / Types│
+                    └────────┬────────┘
+                             │
+               ┌─────────────┴─────────────┐
+               ▼                           ▼
+        ┌──────────────┐            ┌──────────────┐
+        │   Web App    │            │    Server    │
+        │              │            │              │
+        │    Next.js   │◄──────────►│ Node + WS    │
+        └──────┬───────┘            └──────────────┘
+               │
+               │
+               │ WebRTC
+               │
+               ▼
+        ┌──────────────┐
+        │ Other Device │
+        └──────────────┘
 ```
 
-### Remote Caching
+---
 
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
+# 🛠️ Running the Project Locally
 
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
+## 1. Requirements
 
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
+Make sure you have:
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+* Node.js
+* npm
+* Git
 
-```sh
-cd my-turborepo
-turbo login
+Check:
+
+```bash
+node --version
+npm --version
+git --version
 ```
 
-Without global `turbo`, use your package manager:
+---
 
-```sh
-cd my-turborepo
-npx turbo login
-npm exec turbo login
-npm exec turbo login
+# 📥 2. Clone the Repository
+
+Run this from wherever you keep your projects:
+
+```bash
+git clone git@github.com:hamzatahir9091/escape-bridge.git
 ```
 
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
+Then enter the project:
 
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo link
+```bash
+cd escape-bridge
 ```
 
-Without global `turbo`:
+You should now be at the **project root**:
 
-```sh
-npx turbo link
-npm exec turbo link
-npm exec turbo link
+```text
+escape-bridge/
 ```
 
-## Useful Links
+You can confirm with:
 
-Learn more about the power of Turborepo:
+```bash
+pwd
+```
 
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+---
+
+# 📦 3. Install Dependencies
+
+Run this from the **project root**:
+
+```bash
+npm install
+```
+
+Do **not** run `npm install` separately inside `apps/web`, `apps/server`, etc.
+
+This project uses npm workspaces, so dependencies are managed from the root.
+
+---
+
+# ⚙️ 4. Environment Variables
+
+The frontend needs to know where the WebSocket server is running.
+
+Create:
+
+```text
+apps/web/.env.local
+```
+
+For local development:
+
+```env
+NEXT_PUBLIC_WS_URL=ws://localhost:3001
+```
+
+### What does `NEXT_PUBLIC_` mean?
+
+Next.js exposes environment variables beginning with `NEXT_PUBLIC_` to browser-side code.
+
+That's necessary here because the browser needs to know where the signaling server is.
+
+---
+
+# ▶️ 5. Start the Development Environment
+
+From the **project root**:
+
+```bash
+npm run dev
+```
+
+Turborepo will start the applications together.
+
+Typically:
+
+```text
+Web App
+http://localhost:3000
+
+Server
+ws://localhost:3001
+```
+
+Open the frontend:
+
+```text
+http://localhost:3000
+```
+
+---
+
+# 🧪 Running the Apps Individually
+
+You can also run workspaces independently.
+
+### Web
+
+From the project root:
+
+```bash
+npm run dev --workspace=web
+```
+
+### Server
+
+From the project root:
+
+```bash
+npm run dev --workspace=server
+```
+
+This is useful when debugging one side of the application.
+
+---
+
+# 🏗️ Building the Project
+
+Before production deployment, build the workspaces.
+
+From the **project root**:
+
+```bash
+npm run build
+```
+
+Or build individual workspaces:
+
+```bash
+npm run build --workspace=web
+```
+
+```bash
+npm run build --workspace=server
+```
+
+---
+
+# ▶️ Running the Production Build
+
+After building:
+
+```bash
+npm run start --workspace=web
+```
+
+And for the server:
+
+```bash
+npm run start --workspace=server
+```
+
+---
+
+# 🌐 Production Environment
+
+The production frontend needs to point to the production WebSocket server.
+
+For example:
+
+```env
+NEXT_PUBLIC_WS_URL=wss://your-server-url
+```
+
+Notice the difference:
+
+```text
+Development
+ws://localhost:3001
+
+Production
+wss://your-server-url
+```
+
+### `ws://` vs `wss://`
+
+* `ws://` → WebSocket without TLS encryption
+* `wss://` → secure WebSocket over TLS
+
+If the website is running over HTTPS, production WebSocket connections should normally use `wss://`.
+
+---
+
+# 🔧 Useful Commands
+
+Run commands from the **project root** unless stated otherwise.
+
+### Install dependencies
+
+```bash
+npm install
+```
+
+### Start everything
+
+```bash
+npm run dev
+```
+
+### Build everything
+
+```bash
+npm run build
+```
+
+### Build frontend
+
+```bash
+npm run build --workspace=web
+```
+
+### Build server
+
+```bash
+npm run build --workspace=server
+```
+
+### Start frontend
+
+```bash
+npm run start --workspace=web
+```
+
+### Start server
+
+```bash
+npm run start --workspace=server
+```
+
+### Check Git status
+
+```bash
+git status
+```
+
+### Pull latest changes
+
+```bash
+git pull origin main
+```
+
+---
+
+# 🔄 Getting the Latest Version
+
+If you already cloned the project:
+
+```bash
+cd escape-bridge
+git pull origin main
+```
+
+Then install any newly added dependencies:
+
+```bash
+npm install
+```
+
+Then start the project:
+
+```bash
+npm run dev
+```
+
+---
+
+# 🌳 Git Workflow
+
+The main branch is:
+
+```text
+main
+```
+
+Before making changes:
+
+```bash
+git pull origin main
+```
+
+Create a feature branch:
+
+```bash
+git checkout -b feature/my-feature
+```
+
+After making changes:
+
+```bash
+git status
+git add .
+git commit -m "describe your change"
+```
+
+Push it:
+
+```bash
+git push -u origin feature/my-feature
+```
+
+Then merge the feature into `main` through GitHub.
+
+---
+
+# 🧩 Architecture
+
+The project can roughly be divided into four layers:
+
+```text
+┌──────────────────────────────┐
+│           UI Layer           │
+│         Next.js / React      │
+└──────────────┬───────────────┘
+               │
+               ▼
+┌──────────────────────────────┐
+│       Application Logic      │
+│     Hooks / State / Utils    │
+└──────────────┬───────────────┘
+               │
+               ▼
+┌──────────────────────────────┐
+│       Communication Layer    │
+│      WebSocket / WebRTC      │
+└──────────────┬───────────────┘
+               │
+               ▼
+┌──────────────────────────────┐
+│        Server / Signaling    │
+│       Node.js + WebSocket    │
+└──────────────────────────────┘
+```
+
+The important architectural idea is:
+
+> **The server helps devices connect; WebRTC handles the actual peer-to-peer communication whenever possible.**
+
+---
+
+# 🔐 Security Philosophy
+
+Escape Bridge is designed around temporary connections.
+
+The long-term goal is:
+
+* No permanent accounts
+* No unnecessary user data
+* Temporary rooms
+* Direct peer-to-peer communication
+* End-to-end encryption
+* Automatic cleanup
+
+### Current limitation
+
+The initial implementation focuses on getting the networking architecture working first.
+
+Encryption and more advanced file-transfer mechanisms are planned for later versions.
+
+---
+
+# 🚧 Project Status
+
+Escape Bridge is currently an **active development project**.
+
+The core networking architecture is already functional:
+
+```text
+✅ WebSocket signaling
+✅ Device registration
+✅ Rooms
+✅ WebRTC connection
+✅ Data channels
+✅ Text messaging
+✅ Multi-device communication
+✅ File transfer
+✅ Custom device names
+🚧 Encryption
+🚧 Large-file optimization
+🚧 Cloud relay fallback
+🚧 QR pairing
+```
+
+---
+
+# 🤝 Contributing
+
+Want to experiment with the project?
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test locally
+5. Commit your changes
+6. Push your branch
+7. Open a pull request
+
+Please keep the architecture in mind when adding features.
+
+In particular:
+
+> **Keep signaling separate from peer-to-peer communication whenever possible.**
+
+---
+
+# 📜 License
+
+Add your preferred license here.
+
+---
+
+# 🌉 Final Idea
+
+Escape Bridge started from a very simple question:
+
+> **Why is moving something from one device to another still so annoying?**
+
+We're trying to make that interaction feel like it should have always worked:
+
+```text
+Open
+  ↓
+Connect
+  ↓
+Send
+  ↓
+Done.
+```
+
+**No accounts. No nonsense. Just a bridge between your devices.**

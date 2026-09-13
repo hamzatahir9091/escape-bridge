@@ -157,6 +157,7 @@ export interface RoomOfferMessage {
   type: typeof MessageType.ROOM_OFFER;
 
   payload: {
+    roomCode: string;
     senderDeviceId: string;
     targetDeviceId: string;
     offer: SDPDescription;
@@ -166,6 +167,7 @@ export interface RoomAnswerMessage {
   type: typeof MessageType.ROOM_ANSWER;
 
   payload: {
+    roomCode: string;
     senderDeviceId: string;
     targetDeviceId: string;
     answer: SDPDescription;
@@ -175,6 +177,7 @@ export interface RoomIceCandidateMessage {
   type: typeof MessageType.ROOM_ICE_CANDIDATE;
 
   payload: {
+    roomCode: string;
     senderDeviceId: string;
     targetDeviceId: string;
     candidate: ICECandidate;

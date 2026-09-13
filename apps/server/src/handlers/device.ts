@@ -7,6 +7,10 @@ import { WebSocket } from "ws";
 import { devices } from "../store/devices.js";
 import { rooms, clients, Room } from "../store/state.js";
 
+
+
+
+
 export function handleDeviceRegister(
   socket: WebSocket,
   clientId: string,

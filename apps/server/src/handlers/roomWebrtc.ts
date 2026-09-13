@@ -10,28 +10,39 @@ import { clients, rooms } from "../store/state.js";
 
 function findRoomTarget(
   senderClientId: string,
+  roomCode: string,
   targetDeviceId: string
 ) {
-  for (const room of rooms.values()) {
 
-    const sender = [...room.devices.values()].find(
-      (device) => device.clientId === senderClientId
-    );
+  // we will use rooCode to find exact room instead of searching through each room that exists in server 
+  const room = rooms.get(roomCode)
 
-    if (!sender) {
-      continue;
-    }
-
-    const target = room.devices.get(targetDeviceId);
-
-    if (!target || !target.online || !target.clientId) {
-      return null;
-    }
-
-    return target.clientId;
+  if (!room) {
+    console.log(`!!! Room not found : ${roomCode} `)
+    return null;
   }
 
-  return null;
+  // we make sure that sender actually belongs to this room 
+  const sender = [...room.devices.values()].find((device) => {
+    device.clientId === senderClientId
+  })
+
+  if (!sender) {
+    console.log(
+      `Sender ${senderClientId} is not a member of room ${roomCode}`
+    );
+    return null;
+  }
+
+  // Find the target inside THIS room
+  const target = room.devices.get(targetDeviceId);
+
+  if (!target || !target.online || !target.clientId) {
+    return null;
+  }
+
+  return target.clientId;
+
 }
 
 
@@ -41,6 +52,7 @@ export function handleRoomOffer(
 ) {
   const targetClientId = findRoomTarget(
     clientId,
+    data.payload.roomCode,
     data.payload.targetDeviceId
   );
 
@@ -69,6 +81,7 @@ export function handleRoomAnswer(
 ) {
   const targetClientId = findRoomTarget(
     clientId,
+    data.payload.roomCode,
     data.payload.targetDeviceId
   );
 
@@ -96,6 +109,7 @@ export function handleRoomIceCandidate(
 ) {
   const targetClientId = findRoomTarget(
     clientId,
+    data.payload.roomCode,
     data.payload.targetDeviceId
   );
 

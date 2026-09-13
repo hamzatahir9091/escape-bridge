@@ -36,7 +36,7 @@ import { Flip } from "gsap/Flip";
 
 gsap.registerPlugin(Flip);
 
-
+ 
 type P2PMessage = {
   id: string;
   text: string;
@@ -1664,6 +1664,8 @@ export default function Home() {
       return;
     }
     setDeviceNameInLocalstorage(name);
+
+console.log('inside hanlde device setup function that runs when name is entered')
 
     connect();
   };

@@ -14,14 +14,9 @@ export function getDeviceID(): string {
 
 
 
-
-
-
 export function hasDeviceID(): boolean {
   return localStorage.getItem(DEVICE_ID_KEY) !== null;
 }
-
-
 
 
 
@@ -30,8 +25,6 @@ const DEVICE_NAME_KEY = "bridge_device_name";
 export function getDeviceName(): string | null {
   return localStorage.getItem(DEVICE_NAME_KEY);
 }
-
-
 
 
 export function setDeviceNameInLocalstorage(name: string) {

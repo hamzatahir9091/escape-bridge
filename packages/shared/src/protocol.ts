@@ -299,6 +299,7 @@ export interface RoomDevicesUpdatedMessage {
   type: typeof MessageType.ROOM_DEVICES_UPDATED;
 
   payload: {
+    roomCode: string;
     devices: RoomDevice[];
   };
 }

@@ -33,23 +33,19 @@ import React from "react";
 
 import { Flip } from "gsap/Flip";
 
+import type {
+  P2PMessage,
+  RoomMessage,
+  RoomDevice,
+  RoomState,
+  IncomingFileTransfer,
+} from "../lib/types";
 
 gsap.registerPlugin(Flip);
 
- 
-type P2PMessage = {
-  id: string;
-  text: string;
-  direction: "sent" | "received";
-};
 
-type RoomMessage = {
-  id: string;
-  senderDeviceId: string;
-  senderDeviceName: string;
-  text: string;
-  direction: "sent" | "received";
-};
+
+
 
 export default function Home() {
   const socket = useRef<WebSocket | null>(null);
@@ -58,32 +54,22 @@ export default function Home() {
   const peerId = useRef<string | null>(null);
   const dataChannel = useRef<RTCDataChannel | null>(null);
   const pendingCandidates = useRef<RTCIceCandidateInit[]>([]);                // state to store the ice candidates if the offer-answer cyclis still in process
-  const roomPendingCandidates = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
+
   const joinButtonRef = useRef<HTMLButtonElement | null>(null);
 
-  const roomPeers = useRef<Map<string, RTCPeerConnection>>(new Map());
-  const roomDataChannels = useRef<Map<string, RTCDataChannel>>(new Map());
 
   const incomingFiles = useRef<
-    Map<
-      string,
-      {
-        transferId: string;
-        data: ArrayBuffer[];
-        name: string;
-        size: number;
-        mimeType: string;
-        totalChunks: number;
-        chunkSize: number;
-        receivedChunks: number;
-        startTime: number;
-      }
-    >
+    Map<string, IncomingFileTransfer>
   >(new Map());
 
-  const roomPeerTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(
-    new Map()
-  );
+  const roomIncomingFiles = useRef<
+    Map<string, Map<string, IncomingFileTransfer>>
+  >(new Map());
+
+
+  // const roomPeerTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(
+  //   new Map()
+  // );
 
   const otpbuttonRef = useRef<HTMLButtonElement | null>(null);   // otp button ref
 
@@ -98,6 +84,11 @@ export default function Home() {
   const RefreshTL = useRef<gsap.core.Timeline | null>(null);
   const introRef = useRef<HTMLDivElement>(null);
 
+  const roomsRef = useRef<Map<string, RoomState>>(new Map());
+
+  const getRoomState = (roomCode: string) => {
+    return roomsRef.current.get(roomCode);
+  };
 
   const [connected, setConnected] = useState(false);
   const [message, setMessage] = useState("");                                 // state for current message
@@ -135,6 +126,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('room');
   const [deviceMessages, setDeviceMessages] = useState<Record<string, string>>({});
 
+  const [rooms, setRooms] = useState<Record<string, RoomState>>({});
 
   const [deviceInfo, setDeviceInfo] =
     useState<DeviceInfo | null>(null);
@@ -145,14 +137,46 @@ export default function Home() {
 
 
 
-
-
-
-
   const [deviceFiles, setDeviceFiles] = useState<Record<string, File | null>>({});
   const [collapsedIds, setCollapsedIds] = useState<Record<string, boolean>>({});
 
   const [myDeviceName, setMyDeviceName] = useState<string | null>("");
+
+
+  const createRoomState = (
+    roomCode: string,
+    devices: RoomDevice[] = []
+  ): RoomState => {
+    const existingRoom = roomsRef.current.get(roomCode);
+
+    if (existingRoom) {
+      existingRoom.devices = devices;
+      return existingRoom;
+    }
+
+    const room: RoomState = {
+      roomCode,
+      devices,
+      peerStatus: {},
+      peers: new Map(),
+      dataChannels: new Map(),
+      pendingCandidates: new Map(),
+      messages: [],
+      selectedFiles: {},
+      peerTimers: new Map(),
+    };
+
+    roomsRef.current.set(roomCode, room);
+
+    setRooms((prev) => ({
+      ...prev,
+      [roomCode]: room,
+    }));
+
+    return room;
+  };
+
+
 
   useLayoutEffect(() => {
     console.log('use layout effect running ',)
@@ -202,7 +226,7 @@ export default function Home() {
       const deviceId = getDeviceID();
       const deviceName = getDeviceName()
 
-      
+
       setMyDeviceName(deviceName);
 
       socket.current!.send(
@@ -390,8 +414,6 @@ export default function Home() {
                     "Unknown DataChannel message:",
                     data
                   );
-
-                  return;
 
                   return;
                 }
@@ -675,8 +697,12 @@ export default function Home() {
 
         case MessageType.ROOM_CREATED: {
           console.log('ROOM_CREATED CASE RAN',)
+
           const code = data.payload.code;
           console.log("Room created:", code);
+
+          createRoomState(code);
+
           setDisplayRoomCode(code)
           setRoomCode(code);
           break;
@@ -686,6 +712,7 @@ export default function Home() {
           console.log('ROOM_JOINED CASE RAN',)
           const code = data.payload.code;
 
+          createRoomState(code, data.payload.devices);
 
 
           setRoomCode(code);
@@ -698,7 +725,7 @@ export default function Home() {
               device.deviceId !== getDeviceID() &&
               device.online
             ) {
-              connectToRoomDevice(device);
+              connectToRoomDevice(code, device);
             }
           }
 
@@ -708,17 +735,16 @@ export default function Home() {
         case MessageType.ROOM_DEVICES_UPDATED: {
           console.log("Room devices updated , CASE RAN");
 
+          const roomCode = data.payload.roomCode;
           const devices = data.payload.devices;
+
+          const room = roomsRef.current.get(roomCode);
+          if (!room) break;
 
           setRoomDevices(data.payload.devices);
 
           const hasAnotherDevice = devices.some(
-            (device: {
-              deviceId: string;
-              deviceName: string;
-              online: boolean;
-              isHost: boolean;
-            }) =>
+            (device: RoomDevice) =>
               device.deviceId !== getDeviceID() &&
               device.online
           );
@@ -735,11 +761,11 @@ export default function Home() {
             const deviceId = device.deviceId;
 
             // Close old peer
-            const peer = roomPeers.current.get(deviceId);
+            const peer = room.peers.get(deviceId);
 
             if (peer) {
               peer.close();
-              roomPeers.current.delete(deviceId);
+              room.peers.delete(deviceId);
 
               console.log(
                 `🧹 Removed stale peer → ${deviceId}`
@@ -748,11 +774,11 @@ export default function Home() {
 
             // Close old DataChannel
             const channel =
-              roomDataChannels.current.get(deviceId);
+              room.dataChannels.get(deviceId);
 
             if (channel) {
               channel.close();
-              roomDataChannels.current.delete(deviceId);
+              room.dataChannels.delete(deviceId);
 
               console.log(
                 `🧹 Removed stale DataChannel → ${deviceId}`
@@ -760,7 +786,15 @@ export default function Home() {
             }
 
             // Remove pending ICE candidates
-            roomPendingCandidates.current.delete(deviceId);
+            room.pendingCandidates.delete(deviceId);
+
+            // Remove peer timer
+            const timer = room.peerTimers.get(deviceId);
+
+            if (timer) {
+              clearTimeout(timer);
+              room.peerTimers.delete(deviceId);
+            }
 
             // Remove connection status
             setRoomPeerStatus((prev) => {
@@ -778,10 +812,18 @@ export default function Home() {
             `📥 Room OFFER received from ${data.payload.senderDeviceId}`
           );
 
+          const roomCode = data.payload.roomCode;
           const senderDeviceId = data.payload.senderDeviceId;
 
+          const room = roomsRef.current.get(roomCode);
+
+          if (!room) {
+            console.warn(`Room ${roomCode} not found`);
+            break;
+          }
+
           // Don't create another peer if we already have one
-          if (roomPeers.current.has(senderDeviceId)) {
+          if (room.peers.has(senderDeviceId)) {
             console.log(
               "Already have room peer:",
               senderDeviceId
@@ -798,6 +840,7 @@ export default function Home() {
               JSON.stringify({
                 type: MessageType.ROOM_ICE_CANDIDATE,
                 payload: {
+                  roomCode,
                   senderDeviceId: getDeviceID(),
                   targetDeviceId: senderDeviceId,
                   candidate,
@@ -806,7 +849,8 @@ export default function Home() {
             );
           });
 
-          roomPeers.current.set(senderDeviceId, peer);
+          room.peers.set(senderDeviceId, peer);
+
 
           peer.onconnectionstatechange = () => {
             console.log(
@@ -824,7 +868,7 @@ export default function Home() {
           peer.ondatachannel = (event) => {
             const channel = event.channel;
 
-            roomDataChannels.current.set(
+            room.dataChannels.set(
               senderDeviceId,
               channel
             );
@@ -834,7 +878,7 @@ export default function Home() {
                 `🟢 Room DataChannel OPEN → ${senderDeviceId}`
               );
 
-              resetRoomPeerTimer(senderDeviceId);
+              resetRoomPeerTimer(roomCode, senderDeviceId);
 
 
               const info = getLocalDeviceInfo();
@@ -876,6 +920,7 @@ export default function Home() {
 
 
               handleIncomingFileMessage(
+                roomCode,
                 senderDeviceId,
                 event
               );
@@ -892,6 +937,7 @@ export default function Home() {
           );
 
           await processRoomPendingCandidates(
+            roomCode,
             senderDeviceId,
             peer
           );
@@ -902,6 +948,7 @@ export default function Home() {
             JSON.stringify({
               type: MessageType.ROOM_ANSWER,
               payload: {
+                roomCode,
                 senderDeviceId: getDeviceID(),
                 targetDeviceId: data.payload.senderDeviceId,
                 answer,
@@ -919,11 +966,17 @@ export default function Home() {
 
         case MessageType.ROOM_ANSWER: {
           console.log('ROOM_ANSWER CASE RAN',)
+
+          const roomCode = data.payload.roomCode;
+
           const deviceId =
             data.payload.senderDeviceId;
 
-          const peer =
-            roomPeers.current.get(deviceId);
+          const room = roomsRef.current.get(roomCode);
+
+          if (!room) break;
+
+          const peer = room.peers.get(deviceId);
 
           if (!peer) {
             console.log(
@@ -945,6 +998,7 @@ export default function Home() {
 
           // Apply ICE candidates that arrived before the answer
           await processRoomPendingCandidates(
+            roomCode,
             deviceId,
             peer
           );
@@ -953,6 +1007,9 @@ export default function Home() {
         }
 
         case MessageType.ROOM_ICE_CANDIDATE: {
+
+          const roomCode = data.payload.roomCode;
+
           console.log('ROOM-ICE-CANDIDATE CASE RAN',)
           const senderDeviceId =
             data.payload.senderDeviceId;
@@ -960,20 +1017,23 @@ export default function Home() {
           const candidate =
             data.payload.candidate;
 
-          const peer =
-            roomPeers.current.get(senderDeviceId);
+          const room = roomsRef.current.get(roomCode);
+
+          if (!room) break;
+
+          const peer = room.peers.get(senderDeviceId);
 
           // Peer doesn't exist yet
           if (!peer) {
 
             const existing =
-              roomPendingCandidates.current.get(
+              room.pendingCandidates.get(
                 senderDeviceId
               ) ?? [];
 
             existing.push(candidate);
 
-            roomPendingCandidates.current.set(
+            room.pendingCandidates.set(
               senderDeviceId,
               existing
             );
@@ -985,13 +1045,13 @@ export default function Home() {
           if (!peer.remoteDescription) {
 
             const existing =
-              roomPendingCandidates.current.get(
+              room.pendingCandidates.get(
                 senderDeviceId
               ) ?? [];
 
             existing.push(candidate);
 
-            roomPendingCandidates.current.set(
+            room.pendingCandidates.set(
               senderDeviceId,
               existing
             );
@@ -1087,11 +1147,19 @@ export default function Home() {
   };
 
   const processRoomPendingCandidates = async (
+    roomCode: string,
     deviceId: string,
     peer: RTCPeerConnection
   ) => {
+
+    const room = roomsRef.current.get(roomCode)
+
+    if (!room) {
+      return;
+    }
+
     const candidates =
-      roomPendingCandidates.current.get(deviceId);
+      room.pendingCandidates.get(deviceId);
 
     if (!candidates || candidates.length === 0) {
       return;
@@ -1101,7 +1169,7 @@ export default function Home() {
       await addIceCandidate(peer, candidate);
     }
 
-    roomPendingCandidates.current.delete(deviceId);
+    room.pendingCandidates.delete(deviceId);
   };
 
   const createRoom = () => {
@@ -1132,19 +1200,18 @@ export default function Home() {
 
 
   const connectToRoomDevice = async (
-    device: {
-      deviceId: string;
-      deviceName: string;
-      online: boolean;
-      isHost: boolean;
-    }
+    roomCode: string,
+    device: RoomDevice
   ) => {
 
     if (!device.online) {
       return;
     }
 
-    if (roomPeers.current.has(device.deviceId)) {
+    const room = roomsRef.current.get(roomCode);
+    if (!room) return;
+
+    if (room.peers.has(device.deviceId)) {
       return;
     }
 
@@ -1157,6 +1224,7 @@ export default function Home() {
         JSON.stringify({
           type: MessageType.ROOM_ICE_CANDIDATE,
           payload: {
+            roomCode,
             senderDeviceId: getDeviceID(),
             targetDeviceId: device.deviceId,
             candidate,
@@ -1165,7 +1233,7 @@ export default function Home() {
       );
     });
 
-    roomPeers.current.set(device.deviceId, peer);
+    room.peers.set(device.deviceId, peer);
 
     peer.onconnectionstatechange = () => {
       setRoomPeerStatus((prev) => ({
@@ -1181,7 +1249,7 @@ export default function Home() {
     channel.binaryType = "arraybuffer";
 
     channel.onopen = () => {
-      resetRoomPeerTimer(device.deviceId);
+      resetRoomPeerTimer(roomCode, device.deviceId);
 
       const info = getLocalDeviceInfo();
 
@@ -1218,15 +1286,14 @@ export default function Home() {
       }
 
 
-
-
       handleIncomingFileMessage(
+        roomCode,
         device.deviceId,
         event
       );
     };
 
-    roomDataChannels.current.set(
+    room.dataChannels.set(
       device.deviceId,
       channel
     );
@@ -1237,6 +1304,7 @@ export default function Home() {
       JSON.stringify({
         type: MessageType.ROOM_OFFER,
         payload: {
+          roomCode,
           senderDeviceId: getDeviceID(),
           targetDeviceId: device.deviceId,
           offer,
@@ -1247,21 +1315,23 @@ export default function Home() {
   };
 
   const ensureRoomConnection = async (
-    device: {
-      deviceId: string;
-      deviceName: string;
-      online: boolean;
-      isHost: boolean;
-    }
+    roomCode: string,
+    device: RoomDevice
   ) => {
     // Device is offline — nothing to connect to
     if (!device.online) {
       return null;
     }
 
+    const room = roomsRef.current.get(roomCode);
+
+    if (!room) {
+      console.warn(`Room ${roomCode} not found`);
+      return null;
+    }
+
     // Already connected
-    const existingChannel =
-      roomDataChannels.current.get(device.deviceId);
+    const existingChannel = room.dataChannels.get(device.deviceId);
 
     if (existingChannel?.readyState === "open") {
 
@@ -1270,7 +1340,7 @@ export default function Home() {
     }
 
     // Connection is currently being established
-    if (roomPeers.current.has(device.deviceId)) {
+    if (room.peers.has(device.deviceId)) {
       console.log(
         `⏳ Connection already being established → ${device.deviceName}`
       );
@@ -1279,41 +1349,52 @@ export default function Home() {
     }
 
     // No connection exists → create one
-    await connectToRoomDevice(device);
+    await connectToRoomDevice(roomCode, device);
 
     return null;
   };
 
 
   const disconnectFromRoomDevice = (
+    roomCode: string,
     deviceId: string
   ) => {
 
 
+    const room = roomsRef.current.get(roomCode);
 
-    const timer = roomPeerTimers.current.get(deviceId);
+
+    if (!room) {
+      console.warn(`Room ${roomCode} not found`);
+      return null;
+    }
+
+
+    const timer = room?.peerTimers.get(deviceId);
 
     if (timer) {
       clearTimeout(timer);
-      roomPeerTimers.current.delete(deviceId);
+      room?.peerTimers.delete(deviceId);
     }
 
-    const peer = roomPeers.current.get(deviceId);
+
+
+    const peer = room.peers.get(deviceId);
 
     if (peer) {
       peer.close();
-      roomPeers.current.delete(deviceId);
+      room.peers.delete(deviceId);
     }
 
     const channel =
-      roomDataChannels.current.get(deviceId);
+      room.dataChannels.get(deviceId);
 
     if (channel) {
       channel.close();
-      roomDataChannels.current.delete(deviceId);
+      room.dataChannels.delete(deviceId);
     }
 
-    roomPendingCandidates.current.delete(
+    room.pendingCandidates.delete(
       deviceId
     );
 
@@ -1324,9 +1405,18 @@ export default function Home() {
     });
   };
 
-  const resetRoomPeerTimer = (deviceId: string) => {
+  const resetRoomPeerTimer = (roomCode: string, deviceId: string) => {
+
+    const room = roomsRef.current.get(roomCode)
+
+    if (!room) {
+      console.warn(`Room ${roomCode} not found`);
+      return null;
+    }
+
+
     // Clear the old timer
-    const oldTimer = roomPeerTimers.current.get(deviceId);
+    const oldTimer = room.peerTimers.get(deviceId);
 
     if (oldTimer) {
       clearTimeout(oldTimer);
@@ -1338,22 +1428,28 @@ export default function Home() {
         `⏰ Room peer inactive for 5 minutes → ${deviceId}`
       );
 
-      disconnectFromRoomDevice(deviceId);
+      disconnectFromRoomDevice(roomCode, deviceId);
     }, 5 * 60 * 1000);
 
-    roomPeerTimers.current.set(deviceId, timer);
+    room.peerTimers.set(deviceId, timer);
   };
 
   const sendFileToRoomDevice = async (
+    roomCode: string,
     deviceId: string,
     file: File
   ) => {
 
-    resetRoomPeerTimer(deviceId);
+    resetRoomPeerTimer(roomCode, deviceId);
 
+    const room = roomsRef.current.get(roomCode);
+
+    if (!room) {
+      return;
+    }
 
     const channel =
-      roomDataChannels.current.get(deviceId);
+      room.dataChannels.get(deviceId);
 
     if (!channel) {
       return;
@@ -1399,12 +1495,8 @@ export default function Home() {
 
 
   const sendRoomMessage = async (
-    device: {
-      deviceId: string;
-      deviceName: string;
-      online: boolean;
-      isHost: boolean;
-    },
+    roomCode: string,
+    device: RoomDevice,
     text: string
   ) => {
 
@@ -1412,7 +1504,7 @@ export default function Home() {
       return;
     }
 
-    const channel = await ensureRoomConnection(device);
+    const channel = await ensureRoomConnection(roomCode, device);
 
     if (!channel || channel.readyState !== "open") {
       console.log(
@@ -1422,7 +1514,7 @@ export default function Home() {
     }
 
     // here we are resetting the timer for rtc connection to break
-    resetRoomPeerTimer(device.deviceId);
+    resetRoomPeerTimer(roomCode, device.deviceId);
 
     // creating message id for text message
     const messageId = crypto.randomUUID();
@@ -1461,14 +1553,22 @@ export default function Home() {
   };
 
   const handleIncomingFileMessage = (
+    roomCode: string,
     senderDeviceId: string,
     event: MessageEvent
   ) => {
 
-    resetRoomPeerTimer(senderDeviceId);
+    resetRoomPeerTimer(roomCode, senderDeviceId);
     // =========================
     // STRING MESSAGE
     // =========================
+
+    let roomTransfers = roomIncomingFiles.current.get(roomCode);
+
+    if (!roomTransfers) {
+      roomTransfers = new Map();
+      roomIncomingFiles.current.set(roomCode, roomTransfers);
+    }
 
     if (typeof event.data === "string") {
       const data = JSON.parse(event.data);
@@ -1504,7 +1604,7 @@ export default function Home() {
       if (data.type === "FILE_START") {
         const transferId = data.payload.transferId;
 
-        incomingFiles.current.set(senderDeviceId, {
+        roomTransfers.set(senderDeviceId, {
           transferId,
           data: [],
           name: data.payload.name,
@@ -1526,10 +1626,20 @@ export default function Home() {
       // -------------------------
 
       if (data.type === "FILE_END") {
-        const transferId = data.payload.transferId;
+
+        const roomTransfers =
+          roomIncomingFiles.current.get(roomCode);
+
+        if (!roomTransfers) {
+          console.error(
+            "Received FILE_END for unknown room"
+          );
+          return;
+        }
 
         const transfer =
-          incomingFiles.current.get(senderDeviceId);
+          roomTransfers.get(senderDeviceId);
+
 
         if (!transfer) {
           console.error(
@@ -1594,9 +1704,11 @@ export default function Home() {
 
         // IMPORTANT:
         // Remove ONLY this transfer.
-        incomingFiles.current.delete(
-          senderDeviceId
-        );
+        roomTransfers.delete(senderDeviceId);
+
+        if (roomTransfers.size === 0) {
+          roomIncomingFiles.current.delete(roomCode);
+        }
 
         return;
       }
@@ -1636,9 +1748,18 @@ export default function Home() {
       console.log(
         `📦 Binary chunk received from ${senderDeviceId}`
       );
+      const roomTransfers =
+        roomIncomingFiles.current.get(roomCode);
+
+      if (!roomTransfers) {
+        console.error(
+          `No transfers found for room ${roomCode}`
+        );
+        return;
+      }
 
       const transfer =
-        incomingFiles.current.get(senderDeviceId);
+        roomTransfers.get(senderDeviceId);
 
       if (!transfer) {
         console.error(
@@ -1665,7 +1786,7 @@ export default function Home() {
     }
     setDeviceNameInLocalstorage(name);
 
-console.log('inside hanlde device setup function that runs when name is entered')
+    console.log('inside hanlde device setup function that runs when name is entered')
 
     connect();
   };
@@ -2296,6 +2417,7 @@ console.log('inside hanlde device setup function that runs when name is entered'
                                   <button
                                     onClick={() =>
                                       disconnectFromRoomDevice(
+                                        roomCode,
                                         device.deviceId
                                       )
                                     }
@@ -2306,7 +2428,7 @@ console.log('inside hanlde device setup function that runs when name is entered'
                                 ) : (
                                   <button
                                     onClick={() =>
-                                      connectToRoomDevice(device)
+                                      connectToRoomDevice(roomCode, device)
                                     }
                                     className="cursor-pointer rounded-lg border-none bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white"
                                   >
@@ -2329,8 +2451,10 @@ console.log('inside hanlde device setup function that runs when name is entered'
                                     !isCurrentDevice &&
                                     device.online
                                   ) {
+                                    const room = roomsRef.current.get(roomCode);
+
                                     const channel =
-                                      roomDataChannels.current.get(
+                                      room?.dataChannels.get(
                                         device.deviceId
                                       );
 
@@ -2338,11 +2462,12 @@ console.log('inside hanlde device setup function that runs when name is entered'
                                       channel?.readyState === 'open'
                                     ) {
                                       resetRoomPeerTimer(
+                                        roomCode,
                                         device.deviceId
                                       );
                                     }
 
-                                    ensureRoomConnection(device);
+                                    ensureRoomConnection(roomCode, device);
                                   }
                                 }}
                                 onChange={(e) => {
@@ -2362,6 +2487,7 @@ console.log('inside hanlde device setup function that runs when name is entered'
 
                                     if (text && text.trim()) {
                                       sendRoomMessage(
+                                        roomCode,
                                         device,
                                         text
                                       );
@@ -2431,10 +2557,7 @@ console.log('inside hanlde device setup function that runs when name is entered'
                                           return;
                                         }
 
-                                        sendFileToRoomDevice(
-                                          device.deviceId,
-                                          selectedFile
-                                        );
+                                        sendFileToRoomDevice(roomCode, device.deviceId, selectedFile)
                                       }}
                                       disabled={!selectedFile}
                                       className={`w-full rounded-lg border-none p-2 text-xs font-semibold transition-all duration-200 ${selectedFile

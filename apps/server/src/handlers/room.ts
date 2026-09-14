@@ -93,6 +93,7 @@ export function handleJoinRoom(socket: WebSocket,
                     JSON.stringify({
                         type: MessageType.ROOM_DEVICES_UPDATED,
                         payload: {
+                            code: room.code,
                             devices,
                         },
                     })
@@ -154,6 +155,7 @@ export function handleDeviceDisconnect(
                     JSON.stringify({
                         type: MessageType.ROOM_DEVICES_UPDATED,
                         payload: {
+                            code: room.code,
                             devices,
                         },
                     })

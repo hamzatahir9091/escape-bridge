@@ -282,7 +282,7 @@ export interface JoinRoomMessage {
   type: typeof MessageType.JOIN_ROOM;
 
   payload: {
-    code: string;
+    roomCode: string;
   };
 }
 
@@ -290,7 +290,7 @@ export interface RoomJoinedMessage {
   type: typeof MessageType.ROOM_JOINED;
 
   payload: {
-    code: string;
+    roomCode: string;
     devices: RoomDevice[];
   };
 }

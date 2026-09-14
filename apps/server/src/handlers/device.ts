@@ -82,6 +82,7 @@ export function handleDeviceRegister(
           JSON.stringify({
             type: MessageType.ROOM_DEVICES_UPDATED,
             payload: {
+              roomCode:room.code,
               devices: roomDevices,
             },
           })

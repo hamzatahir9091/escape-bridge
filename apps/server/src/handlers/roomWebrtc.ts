@@ -24,8 +24,11 @@ function findRoomTarget(
 
   // we make sure that sender actually belongs to this room 
   const sender = [...room.devices.values()].find((device) => {
-    device.clientId === senderClientId
+    return device.clientId === senderClientId;
   })
+
+  console.log("ROOM DEVICES:", [...room.devices.values()]);
+  console.log("LOOKING FOR CLIENT:", senderClientId);
 
   if (!sender) {
     console.log(

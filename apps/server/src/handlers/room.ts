@@ -37,7 +37,7 @@ export function handleCreateRoom(socket: WebSocket, clientId: string, deviceId: 
         JSON.stringify({
             type: MessageType.ROOM_CREATED,
             payload: {
-                code,
+                roomCode:code,
             },
         })
     );
@@ -55,10 +55,12 @@ export function handleJoinRoom(socket: WebSocket,
     deviceName: string,
     data: JoinRoomMessage) {
 
-    const room = rooms.get(data.payload.code)
+    const room = rooms.get(data.payload.roomCode)
+
+    console.log('data.payload', data.payload)
 
     if (!room) {
-        console.log("Room not found with the room code :", data.payload.code);
+        console.log("Room not found with the room code :", data.payload.roomCode);
         return;
     }
 
@@ -75,7 +77,7 @@ export function handleJoinRoom(socket: WebSocket,
         JSON.stringify({
             type: MessageType.ROOM_JOINED,
             payload: {
-                code: room.code,
+                roomCode: room.code,
                 devices,
             },
         })
@@ -93,7 +95,7 @@ export function handleJoinRoom(socket: WebSocket,
                     JSON.stringify({
                         type: MessageType.ROOM_DEVICES_UPDATED,
                         payload: {
-                            code: room.code,
+                            roomCode: room.code,
                             devices,
                         },
                     })
@@ -155,7 +157,7 @@ export function handleDeviceDisconnect(
                     JSON.stringify({
                         type: MessageType.ROOM_DEVICES_UPDATED,
                         payload: {
-                            code: room.code,
+                            roomCode: room.code,
                             devices,
                         },
                     })

@@ -10,7 +10,7 @@ import { getDeviceID, hasDeviceID, getDeviceName, setDeviceNameInLocalstorage, }
 
 import DeviceIcon from "../components/DeviceIcon";
 
-import BinaryBridgeBackground from "../components/BinaryBridgeBackground";
+
 import {
   getLocalDeviceInfo,
   type DeviceInfo,
@@ -21,7 +21,7 @@ import {
   createDeviceInfoMessage,
   parseDeviceInfoMessage,
 } from "../lib/deviceExchange";
-import BinaryBridgeTowers from "../components/BinaryBridgeTowers";
+
 import Intro from "../components/Intro";
 import StrokeText from '../components/StrokeText';
 
@@ -71,8 +71,6 @@ export default function Home() {
   //   new Map()
   // );
 
-  const otpbuttonRef = useRef<HTMLButtonElement | null>(null);   // otp button ref
-
   const hasInitialRoomAnimationPlayed = useRef(false);
 
   // GSAP REFS
@@ -98,7 +96,7 @@ export default function Home() {
 
   const [roomMessages, setRoomMessages] = useState<RoomMessage[]>([]);
 
-
+  const [activeRoomCode, setActiveRoomCode] = useState<string | null>(null);
   const [dataChannelOpen, setDataChannelOpen] = useState(false);              // state for kkeping track of connection
   const [sessionCode, setSessionCode] = useState("");                         // usestate for storing the code from next browser
   const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({});
@@ -179,7 +177,6 @@ export default function Home() {
 
 
   useLayoutEffect(() => {
-    console.log('use layout effect running ',)
 
     const info = getLocalDeviceInfo();
 
@@ -189,7 +186,7 @@ export default function Home() {
 
       setDeviceNameState(info.deviceType);
 
-      console.log('hasDeviceID()', hasDeviceID())
+
 
       setNeedsDeviceSetup(true);
       setIsNewUser(true)
@@ -198,7 +195,7 @@ export default function Home() {
       return;
     }
 
-    console.log('hasDeviceID()', hasDeviceID())
+
     setIsSettled(true);
 
   }, [])
@@ -216,7 +213,7 @@ export default function Home() {
 
   const connect = () => {
 
-    console.log('connect function running',)
+
 
     socket.current = new WebSocket(process.env.NEXT_PUBLIC_WS_URL!);
 
@@ -242,6 +239,7 @@ export default function Home() {
 
     // when socket receive message do this
     socket.current.onmessage = async (event) => {
+
       const data = JSON.parse(event.data);
 
       switch (data.type) {
@@ -249,12 +247,12 @@ export default function Home() {
           break;
 
         case MessageType.SESSION_CREATED:
-          console.log('SESSION_CREATED CASE RAN',)
-          console.log("Session Code:", data.payload.code);
+
+
           break;
 
         case MessageType.SESSION_JOINED: {
-          console.log('SESSION_JOINED CASE RAN',)
+
           peerREF.current = createPeerConnection((candidate) => {
             if (candidate) {
               socket.current?.send(
@@ -698,7 +696,7 @@ export default function Home() {
         case MessageType.ROOM_CREATED: {
           console.log('ROOM_CREATED CASE RAN',)
 
-          const code = data.payload.code;
+          const code = data.payload.roomCode;
           console.log("Room created:", code);
 
           createRoomState(code);
@@ -710,7 +708,7 @@ export default function Home() {
 
         case MessageType.ROOM_JOINED: {
           console.log('ROOM_JOINED CASE RAN',)
-          const code = data.payload.code;
+          const code = data.payload.roomCode;
 
           createRoomState(code, data.payload.devices);
 
@@ -735,11 +733,18 @@ export default function Home() {
         case MessageType.ROOM_DEVICES_UPDATED: {
           console.log("Room devices updated , CASE RAN");
 
+          console.log('data.payload', data.payload)
+
           const roomCode = data.payload.roomCode;
           const devices = data.payload.devices;
 
+          console.log('roomCode', roomCode)
+
           const room = roomsRef.current.get(roomCode);
-          if (!room) break;
+          if (!room) {
+            console.log('#################ROOM BREAKER###################',)
+            break
+          };
 
           setRoomDevices(data.payload.devices);
 
@@ -1191,7 +1196,7 @@ export default function Home() {
         {
           type: MessageType.JOIN_ROOM,
           payload: {
-            code: roomCode.trim()
+            roomCode: roomCode.trim()
           }
         }
       )
@@ -1429,7 +1434,7 @@ export default function Home() {
       );
 
       disconnectFromRoomDevice(roomCode, deviceId);
-    }, 5 * 60 * 1000);
+    }, 1 * 10 * 1000);
 
     room.peerTimers.set(deviceId, timer);
   };
@@ -2193,6 +2198,22 @@ export default function Home() {
             {activeTab === 'room' && (
               <div id="roomWorkSpace" className=" relative z-0  flex flex-col h-full justify-center items-center pointer-events-none ">
 
+
+                {/* Room Switcher */}
+                <div className="absolute top-4 left-4 z-50 flex items-center gap-2">
+                  {Object.keys(rooms).map((code) => (
+                    <button
+                      key={code}
+                      onClick={() => setActiveRoomCode(code)}
+                      className={`rounded-lg px-4 py-2 text-xs font-semibold transition ${activeRoomCode === code
+                        ? "bg-sky-500 text-slate-950"
+                        : "bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                        }`}
+                    >
+                      {code}
+                    </button>
+                  ))}
+                </div>
 
                 {needsDeviceSetup &&
                   <span id="roomIntroText" className="absolute inset-0  opacity-0 h-1/6 flex justify-center items-center text-slate-300 text-3xl">If u want one time setup and seemeless connectivity , u are at right place </span>

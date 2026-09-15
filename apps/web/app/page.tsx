@@ -163,6 +163,7 @@ export default function Home() {
 			selectedFiles: {},
 			peerTimers: new Map(),
 			deviceMessages: {},
+			remoteDeviceInfo: {},
 		}
 
 		roomsRef.current.set(roomCode, room)
@@ -673,7 +674,7 @@ export default function Home() {
 
 					setRoomCode(code)
 					setActiveRoomCode(code)
-					setRoomDevices(data.payload.devices)
+					
 
 					playInitialRoomAnimation()
 
@@ -704,7 +705,7 @@ export default function Home() {
 
 					room.devices = devices
 
-					setRoomDevices(data.payload.devices)
+				
 
 					const hasAnotherDevice = devices.some(
 						(device: RoomDevice) =>
@@ -852,10 +853,21 @@ export default function Home() {
 								const deviceInfoMessage = parseDeviceInfoMessage(event.data)
 
 								if (deviceInfoMessage) {
-									setRemoteDeviceInfo((prev) => ({
+
+									const room = roomsRef.current.get(roomCode)
+
+									if (!room) return
+
+									room.remoteDeviceInfo = {
+										...room.remoteDeviceInfo,
+										[senderDeviceId]: deviceInfo,
+									}
+
+									setRooms((prev) => ({
 										...prev,
-										[senderDeviceId]: deviceInfoMessage.payload,
+										[roomCode]: room,
 									}))
+
 									return
 								}
 							}
@@ -1143,13 +1155,25 @@ export default function Home() {
 		channel.binaryType = "arraybuffer"
 
 		channel.onmessage = (event) => {
+
 			if (typeof event.data === "string") {
+
 				const deviceInfoMessage = parseDeviceInfoMessage(event.data)
 
 				if (deviceInfoMessage) {
-					setRemoteDeviceInfo((prev) => ({
-						...prev,
+
+					const room = roomsRef.current.get(roomCode)
+
+					if (!room) return
+
+					room.remoteDeviceInfo = {
+						...room.remoteDeviceInfo,
 						[device.deviceId]: deviceInfoMessage.payload,
+					}
+
+					setRooms((prev) => ({
+						...prev,
+						[roomCode]: room,
 					}))
 
 					return
@@ -1410,10 +1434,9 @@ export default function Home() {
 			const data = JSON.parse(event.data)
 
 			if (data.type === "ROOM_CHAT_MESSAGE") {
-				const senderDevice = roomDevices.find(
-					(device) => device.deviceId === senderDeviceId,
+				const senderDevice = room.devices.find(
+					(device) => device.deviceId === senderDeviceId
 				)
-
 				room.messages = [
 					...room.messages,
 					{
@@ -2429,8 +2452,7 @@ export default function Home() {
 															{/* Device icon */}
 															<DeviceIcon
 																deviceType={
-																	remoteDeviceInfo[device.deviceId]
-																		?.deviceType ?? "unknown"
+																	activeRoom?.remoteDeviceInfo[device.deviceId]?.deviceType ?? "unknown"
 																}
 																size={28}
 															/>

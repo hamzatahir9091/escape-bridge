@@ -1,3 +1,5 @@
+import { type DeviceInfo } from "../lib/deviceInfo"
+
 export type P2PMessage = {
   id: string;
   text: string;
@@ -29,7 +31,8 @@ export type RoomState = {
   messages: RoomMessage[];
   selectedFiles: Record<string, File | null>;
   peerTimers: Map<string, ReturnType<typeof setTimeout>>;
-  deviceMessages: Record<string, string>
+  deviceMessages: Record<string, string>;
+  remoteDeviceInfo: Record<string, DeviceInfo>
 };
 
 export type IncomingFileTransfer = {

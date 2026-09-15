@@ -14,6 +14,8 @@ function findRoomTarget(
   targetDeviceId: string
 ) {
 
+  console.log('roomCode', roomCode)
+
   // we will use rooCode to find exact room instead of searching through each room that exists in server 
   const room = rooms.get(roomCode)
 

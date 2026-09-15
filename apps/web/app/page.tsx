@@ -93,7 +93,6 @@ export default function Home() {
 
 	const [receivedMessages, setReceivedMessages] = useState<P2PMessage[]>([])
 
-	const [roomMessages, setRoomMessages] = useState<RoomMessage[]>([])
 
 	const [activeRoomCode, setActiveRoomCode] = useState<string | null>(null)
 	const [dataChannelOpen, setDataChannelOpen] = useState(false) // state for kkeping track of connection
@@ -1361,9 +1360,15 @@ export default function Home() {
 
 		console.log(`📤 Message sent → ${device.deviceName}: ${text}`)
 
+		const room = roomsRef.current.get(roomCode)
+
+		if (!room) {
+			return;
+		}
+
 		// Add our own message immediately
-		setRoomMessages((prev) => [
-			...prev,
+		room.messages = [
+			...room.messages,
 			{
 				id: messageId,
 				senderDeviceId: getDeviceID(),
@@ -1371,7 +1376,12 @@ export default function Home() {
 				text: text.trim(),
 				direction: "sent",
 			},
-		])
+		]
+
+		setRooms((prev) => ({
+			...prev,
+			[roomCode]: room,
+		}))
 	}
 
 	const handleIncomingFileMessage = (
@@ -1386,6 +1396,13 @@ export default function Home() {
 
 		let roomTransfers = roomIncomingFiles.current.get(roomCode)
 
+
+		const room = roomsRef.current.get(roomCode)
+
+		if (!room) {
+			return;
+		}
+
 		if (!roomTransfers) {
 			roomTransfers = new Map()
 			roomIncomingFiles.current.set(roomCode, roomTransfers)
@@ -1399,8 +1416,8 @@ export default function Home() {
 					(device) => device.deviceId === senderDeviceId,
 				)
 
-				setRoomMessages((prev) => [
-					...prev,
+				room.messages = [
+					...room.messages,
 					{
 						id: data.payload.messageId ?? crypto.randomUUID(),
 						senderDeviceId,
@@ -1411,7 +1428,12 @@ export default function Home() {
 						text: data.payload.text,
 						direction: "received",
 					},
-				])
+				]
+
+				setRooms((prev) => ({
+					...prev,
+					[roomCode]: room,
+				}))
 
 				return
 			}
@@ -2007,21 +2029,19 @@ export default function Home() {
 						<div className="flex rounded-[14px] border border-slate-800 bg-slate-900 p-1 h-10 w-fit">
 							<button
 								onClick={() => setActiveTab("room")}
-								className={`cursor-pointer rounded-[10px] border-none px-7 py-2.5text-sm font-semibold transition-all duration-200 ease-in-out${
-									activeTab === "room"
-										? "bg-slate-800 text-sky-400 shadow-[0_4px_12px_rgba(0,0,0,0.2)]"
-										: "bg-transparent text-slate-500 shadow-none"
-								}`}>
+								className={`cursor-pointer rounded-[10px] border-none px-7 py-2.5text-sm font-semibold transition-all duration-200 ease-in-out${activeTab === "room"
+									? "bg-slate-800 text-sky-400 shadow-[0_4px_12px_rgba(0,0,0,0.2)]"
+									: "bg-transparent text-slate-500 shadow-none"
+									}`}>
 								Room
 							</button>
 
 							<button
 								onClick={() => setActiveTab("p2p")}
-								className={`cursor-pointer rounded-[10px] border-none px-7 py-2.5        text-sm font-semibold transition-all duration-200 ease-in-out        ${
-									activeTab === "p2p"
-										? "bg-slate-800 text-sky-400 shadow-[0_4px_12px_rgba(0,0,0,0.2)]"
-										: "bg-transparent text-slate-500 shadow-none"
-								}`}>
+								className={`cursor-pointer rounded-[10px] border-none px-7 py-2.5        text-sm font-semibold transition-all duration-200 ease-in-out        ${activeTab === "p2p"
+									? "bg-slate-800 text-sky-400 shadow-[0_4px_12px_rgba(0,0,0,0.2)]"
+									: "bg-transparent text-slate-500 shadow-none"
+									}`}>
 								P2P
 							</button>
 						</div>
@@ -2034,11 +2054,10 @@ export default function Home() {
 							<div className="relative flex w-1/3 h-1/2 items-center justify-center">
 								{/* Absolute Room Code display (Fades in/out from left) */}
 								<div
-									className={`absolute right-full mr-4 h-full flex items-center rounded-[11px] bg-[#0b1f2a] border border-[#3ee8ff]/30 overflow-hidden transition-all duration-300 ease-out ${
-										roomCode
-											? "opacity-100 translate-x-0 pointer-events-auto"
-											: "opacity-0 -translate-x-4 pointer-events-none"
-									}`}>
+									className={`absolute right-full mr-4 h-full flex items-center rounded-[11px] bg-[#0b1f2a] border border-[#3ee8ff]/30 overflow-hidden transition-all duration-300 ease-out ${roomCode
+										? "opacity-100 translate-x-0 pointer-events-auto"
+										: "opacity-0 -translate-x-4 pointer-events-none"
+										}`}>
 									<button
 										onClick={() =>
 											roomCode && navigator.clipboard.writeText(roomCode)
@@ -2121,11 +2140,10 @@ export default function Home() {
 
 								{/* Join Room Input (Fades in/out downwards) */}
 								<div
-									className={`absolute top-[115%] left-0 w-full flex items-center gap-2 rounded-[11px] border border-[#3ee8ff]/30 bg-[#0b1f2a] p-2 shadow-[0_8px_26px_-8px_rgba(62,232,255,0.3)] transition-all duration-300 ease-out z-10 ${
-										showJoinInput
-											? "opacity-100 translate-y-0 pointer-events-auto"
-											: "opacity-0 -translate-y-2 pointer-events-none"
-									}`}>
+									className={`absolute top-[115%] left-0 w-full flex items-center gap-2 rounded-[11px] border border-[#3ee8ff]/30 bg-[#0b1f2a] p-2 shadow-[0_8px_26px_-8px_rgba(62,232,255,0.3)] transition-all duration-300 ease-out z-10 ${showJoinInput
+										? "opacity-100 translate-y-0 pointer-events-auto"
+										: "opacity-0 -translate-y-2 pointer-events-none"
+										}`}>
 									<input
 										ref={joinDialogueInputRef}
 										type="text"
@@ -2229,9 +2247,8 @@ export default function Home() {
 																{[0, 1, 2, 3, 4, 5].map((index) => (
 																	<div
 																		key={index}
-																		className={`min-w-[54px] min-h-[64px] rounded-[10px] border border-[rgba(140,200,255,0.24)] bg-[rgba(62,232,255,0.06)] px-[14px] py-[10px] text-center font-mono text-[30px] font-semibold tracking-[0.02em] text-[#eaf2fb] [text-shadow:0_0_20px_rgba(62,232,255,0.35)] ${
-																			index === 3 ? "ml-1" : ""
-																		}`}>
+																		className={`min-w-[54px] min-h-[64px] rounded-[10px] border border-[rgba(140,200,255,0.24)] bg-[rgba(62,232,255,0.06)] px-[14px] py-[10px] text-center font-mono text-[30px] font-semibold tracking-[0.02em] text-[#eaf2fb] [text-shadow:0_0_20px_rgba(62,232,255,0.35)] ${index === 3 ? "ml-1" : ""
+																			}`}>
 																		{displayRoomCode?.[index] || ""}
 																	</div>
 																))}
@@ -2286,7 +2303,7 @@ export default function Home() {
 														<div className="mb-5 flex gap-2">
 															<CodeInput
 																onComplete={handleCodeComplete}
-																// nextFocusRef={joinButtonRef}
+															// nextFocusRef={joinButtonRef}
 															/>
 														</div>
 
@@ -2337,17 +2354,15 @@ export default function Home() {
 												<button
 													key={code}
 													onClick={() => setActiveRoomCode(code)}
-													className={`relative flex items-center gap-2 rounded-[8px] px-3 py-1.5 text-xs font-mono font-semibold tracking-wider transition-all duration-200 cursor-pointer ${
-														isActive
-															? "bg-gradient-to-r from-[#3ee8ff] to-[#7fd8ff] text-[#02141c] shadow-[0_0_12px_rgba(62,232,255,0.4)]"
-															: "bg-transparent text-slate-400 hover:bg-[#3ee8ff]/10 hover:text-[#3ee8ff]"
-													}`}>
+													className={`relative flex items-center gap-2 rounded-[8px] px-3 py-1.5 text-xs font-mono font-semibold tracking-wider transition-all duration-200 cursor-pointer ${isActive
+														? "bg-gradient-to-r from-[#3ee8ff] to-[#7fd8ff] text-[#02141c] shadow-[0_0_12px_rgba(62,232,255,0.4)]"
+														: "bg-transparent text-slate-400 hover:bg-[#3ee8ff]/10 hover:text-[#3ee8ff]"
+														}`}>
 													<span
-														className={`h-1.5 w-1.5 rounded-full ${
-															isActive
-																? "bg-[#02141c] shadow-[0_0_4px_#02141c]"
-																: "bg-[#3ee8ff]/40"
-														}`}
+														className={`h-1.5 w-1.5 rounded-full ${isActive
+															? "bg-[#02141c] shadow-[0_0_4px_#02141c]"
+															: "bg-[#3ee8ff]/40"
+															}`}
 													/>
 													{code}
 												</button>
@@ -2384,13 +2399,12 @@ export default function Home() {
     border bg-slate-900
     transition-all duration-300
     ${isExpanded ? "h-56" : "h-16"}
-    ${
-			device.online
-				? isConnected
-					? "border-sky-400/40 shadow-[0_0_15px_rgba(56,189,248,0.05)]"
-					: "border-slate-800"
-				: "cursor-not-allowed opacity-60 border-slate-800"
-		}
+    ${device.online
+																? isConnected
+																	? "border-sky-400/40 shadow-[0_0_15px_rgba(56,189,248,0.05)]"
+																	: "border-slate-800"
+																: "cursor-not-allowed opacity-60 border-slate-800"
+															}
   `}
 														onMouseEnter={() => {
 															if (device.online) {
@@ -2495,11 +2509,10 @@ export default function Home() {
 																	}
 																}}
 																onClick={(e) => e.stopPropagation()}
-																className={` min-w-0 flex-1 rounded-lg border border-slate-800 bg-[#090d16] px-3 py-2 text-xs outline-none ${
-																	device.online
-																		? "text-slate-50 placeholder:text-slate-600"
-																		: "cursor-not-allowed text-slate-600"
-																}
+																className={` min-w-0 flex-1 rounded-lg border border-slate-800 bg-[#090d16] px-3 py-2 text-xs outline-none ${device.online
+																	? "text-slate-50 placeholder:text-slate-600"
+																	: "cursor-not-allowed text-slate-600"
+																	}
   `}
 															/>
 
@@ -2560,11 +2573,10 @@ export default function Home() {
 																}}
 																className={`
     shrink-0 rounded-lg px-3 py-2 text-xs font-medium
-    ${
-			device.online
-				? "text-slate-400 hover:bg-white/10 hover:text-white"
-				: "cursor-not-allowed text-slate-700"
-		}
+    ${device.online
+																		? "text-slate-400 hover:bg-white/10 hover:text-white"
+																		: "cursor-not-allowed text-slate-700"
+																	}
   `}>
 																Paste
 															</button>
@@ -2576,11 +2588,10 @@ export default function Home() {
 															className={`
             flex flex-col gap-3 px-4 pb-4
             transition-all duration-300
-            ${
-							isExpanded
-								? "translate-y-0 opacity-100"
-								: "pointer-events-none -translate-y-2 opacity-0"
-						}
+            ${isExpanded
+																	? "translate-y-0 opacity-100"
+																	: "pointer-events-none -translate-y-2 opacity-0"
+																}
           `}>
 															{/* File picker */}
 
@@ -2663,11 +2674,10 @@ export default function Home() {
                   p-2
                   text-xs font-semibold
                   transition-all duration-200
-                  ${
-										selectedFile
-											? "cursor-pointer bg-emerald-600 text-white hover:bg-emerald-500"
-											: "cursor-not-allowed bg-slate-800 text-slate-500"
-									}
+                  ${selectedFile
+																				? "cursor-pointer bg-emerald-600 text-white hover:bg-emerald-500"
+																				: "cursor-not-allowed bg-slate-800 text-slate-500"
+																			}
                 `}>
 																		Send Selected File
 																	</button>
@@ -2695,14 +2705,14 @@ export default function Home() {
 											</div>
 
 											<div className="rounded-full border border-slate-800 bg-slate-900/70 px-2.5 py-1 text-[10px] font-medium text-slate-500">
-												{roomMessages.length}{" "}
-												{roomMessages.length === 1 ? "message" : "messages"}
+												{activeRoom?.messages.length ?? 0}{" "}
+												{(activeRoom?.messages.length ?? 0) === 1 ? "message" : "messages"}
 											</div>
 										</div>
 
 										{/* Messages */}
 										<div className="flex flex-1 flex-col gap-3 overflow-y-auto pr-1">
-											{roomMessages.length === 0 ? (
+											{(activeRoom?.messages.length ?? 0) === 0 ? (
 												<div className="flex flex-1 flex-col items-center justify-center text-center">
 													<div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl border border-slate-800 bg-slate-900/70 text-slate-600">
 														<svg
@@ -2728,15 +2738,14 @@ export default function Home() {
 													</p>
 												</div>
 											) : (
-												roomMessages.map((msg) => {
+												(activeRoom?.messages ?? []).map((msg) => {
 													const isYou = msg.senderDeviceId === getDeviceID()
 
 													return (
 														<div
-															key={`${msg.senderDeviceId}-${msg.text}-${roomMessages.indexOf(msg)}`}
-															className={`group flex w-full items-center gap-2 ${
-																isYou ? "justify-end" : "justify-start"
-															}`}>
+															key={`${msg.senderDeviceId}-${msg.text}-${(activeRoom?.messages ?? []).indexOf(msg)}`}
+															className={`group flex w-full items-center gap-2 ${isYou ? "justify-end" : "justify-start"
+																}`}>
 															{/* COPY — YOUR MESSAGE */}
 															{isYou && (
 																<button
@@ -2769,24 +2778,21 @@ export default function Home() {
 
 															{/* MESSAGE */}
 															<div
-																className={`max-w-[75%] rounded-2xl px-3.5 py-2.5 ${
-																	isYou
-																		? "rounded-br-md border border-sky-400/20 bg-sky-500/[0.10]"
-																		: "rounded-bl-md border border-slate-800 bg-[#0c121d]"
-																}`}>
+																className={`max-w-[75%] rounded-2xl px-3.5 py-2.5 ${isYou
+																	? "rounded-br-md border border-sky-400/20 bg-sky-500/[0.10]"
+																	: "rounded-bl-md border border-slate-800 bg-[#0c121d]"
+																	}`}>
 																{/* Sender */}
 																<div
-																	className={`mb-1 text-[10px] font-semibold ${
-																		isYou ? "text-sky-400/80" : "text-slate-500"
-																	}`}>
+																	className={`mb-1 text-[10px] font-semibold ${isYou ? "text-sky-400/80" : "text-slate-500"
+																		}`}>
 																	{isYou ? "You" : msg.senderDeviceName}
 																</div>
 
 																{/* Text */}
 																<p
-																	className={`whitespace-pre-wrap break-words text-[13px] leading-relaxed ${
-																		isYou ? "text-slate-200" : "text-slate-300"
-																	}`}>
+																	className={`whitespace-pre-wrap break-words text-[13px] leading-relaxed ${isYou ? "text-slate-200" : "text-slate-300"
+																		}`}>
 																	{msg.text}
 																</p>
 															</div>

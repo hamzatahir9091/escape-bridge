@@ -111,9 +111,8 @@ export default function Home() {
 			isHost: boolean
 		}[]
 	>([])
-	const [roomPeerStatus, setRoomPeerStatus] = useState<Record<string, boolean>>(
-		{},
-	)
+
+
 
 	const [needsDeviceSetup, setNeedsDeviceSetup] = useState(true)
 	const [isHeroAnimationDone, setIsHeroAnimationDone] = useState(false)
@@ -226,7 +225,7 @@ export default function Home() {
 
 	// Add this useEffect inside your component to listen for the Escape key
 	useEffect(() => {
-		const handleKeyDown = (e) => {
+		const handleKeyDown = (e: KeyboardEvent) => {
 			if (e.key === "Escape") {
 				if (showJoinInput) setShowJoinInput(false);
 				if (roomCode) setRoomCode(""); // Or clear the active room code state
@@ -770,11 +769,16 @@ export default function Home() {
 						}
 
 						// Remove connection status
-						setRoomPeerStatus((prev) => {
-							const updated = { ...prev }
-							delete updated[deviceId]
-							return updated
-						})
+						room.peerStatus = {
+							...room.peerStatus,
+						}
+
+						delete room.peerStatus[deviceId]
+
+						setRooms((prev) => ({
+							...prev,
+							[roomCode]: room,
+						}))
 					}
 					break
 				}
@@ -824,9 +828,14 @@ export default function Home() {
 					peer.onconnectionstatechange = () => {
 						console.log(`Room peer ${senderDeviceId}:`, peer.connectionState)
 
-						setRoomPeerStatus((prev) => ({
-							...prev,
+						room.peerStatus = {
+							...room.peerStatus,
 							[senderDeviceId]: peer.connectionState === "connected",
+						}
+
+						setRooms((prev) => ({
+							...prev,
+							[roomCode]: room,
 						}))
 					}
 
@@ -1119,9 +1128,14 @@ export default function Home() {
 		room.peers.set(device.deviceId, peer)
 
 		peer.onconnectionstatechange = () => {
-			setRoomPeerStatus((prev) => ({
-				...prev,
+			room.peerStatus = {
+				...room.peerStatus,
 				[device.deviceId]: peer.connectionState === "connected",
+			}
+
+			setRooms((prev) => ({
+				...prev,
+				[roomCode]: room,
 			}))
 		}
 
@@ -1243,11 +1257,16 @@ export default function Home() {
 
 		room.pendingCandidates.delete(deviceId)
 
-		setRoomPeerStatus((prev) => {
-			const updated = { ...prev }
-			delete updated[deviceId]
-			return updated
-		})
+		room.peerStatus = {
+			...room.peerStatus,
+		}
+
+		delete room.peerStatus[deviceId]
+
+		setRooms((prev) => ({
+			...prev,
+			[roomCode]: room,
+		}))
 	}
 
 	const resetRoomPeerTimer = (roomCode: string, deviceId: string) => {
@@ -2365,7 +2384,7 @@ export default function Home() {
 											.map((device) => {
 												const isCurrentDevice =
 													device.deviceId === getDeviceID()
-												const isConnected = roomPeerStatus[device.deviceId]
+												const isConnected = activeRoom?.peerStatus[device.deviceId] ?? false
 												const selectedFile = selectedFiles[device.deviceId]
 												const isExpanded = expandedDevice === device.deviceId
 

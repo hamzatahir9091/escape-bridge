@@ -29,6 +29,7 @@ export type RoomState = {
   messages: RoomMessage[];
   selectedFiles: Record<string, File | null>;
   peerTimers: Map<string, ReturnType<typeof setTimeout>>;
+  deviceMessages: Record<string, string>
 };
 
 export type IncomingFileTransfer = {

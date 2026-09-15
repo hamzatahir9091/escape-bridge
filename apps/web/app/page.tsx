@@ -118,9 +118,6 @@ export default function Home() {
 	const [deviceName, setDeviceNameState] = useState("My Device")
 
 	const [activeTab, setActiveTab] = useState("room")
-	const [deviceMessages, setDeviceMessages] = useState<Record<string, string>>(
-		{},
-	)
 
 	const [rooms, setRooms] = useState<Record<string, RoomState>>({})
 
@@ -165,6 +162,7 @@ export default function Home() {
 			messages: [],
 			selectedFiles: {},
 			peerTimers: new Map(),
+			deviceMessages: {},
 		}
 
 		roomsRef.current.set(roomCode, room)
@@ -2467,7 +2465,7 @@ export default function Home() {
 															<input
 																disabled={!device.online}
 																placeholder={`Message to ${device.deviceName}...`}
-																value={deviceMessages?.[device.deviceId] || ""}
+																value={activeRoom?.deviceMessages?.[device.deviceId] || ""}
 																onFocus={() => {
 																	if (!isCurrentDevice && device.online) {
 																		const room = roomsRef.current.get(roomCode)
@@ -2488,22 +2486,42 @@ export default function Home() {
 																onChange={(e) => {
 																	const value = e.target.value
 
-																	setDeviceMessages((prev) => ({
-																		...prev,
+																	if (!activeRoomCode) return
+
+																	const room = roomsRef.current.get(activeRoomCode)
+																	if (!room) return
+
+																	room.deviceMessages = {
+																		...room.deviceMessages,
 																		[device.deviceId]: value,
+																	}
+
+																	setRooms((prev) => ({
+																		...prev,
+																		[activeRoomCode]: room,
 																	}))
 																}}
 																onKeyDown={(e) => {
 																	if (e.key === "Enter") {
 																		const text =
-																			deviceMessages?.[device.deviceId]
+																			activeRoom?.deviceMessages?.[device.deviceId]
 
 																		if (text && text.trim()) {
 																			sendRoomMessage(roomCode, device, text)
 
-																			setDeviceMessages((prev) => ({
-																				...prev,
+																			if (!activeRoomCode) return
+
+																			const room = roomsRef.current.get(activeRoomCode)
+																			if (!room) return
+
+																			room.deviceMessages = {
+																				...room.deviceMessages,
 																				[device.deviceId]: "",
+																			}
+
+																			setRooms((prev) => ({
+																				...prev,
+																				[activeRoomCode]: room,
 																			}))
 																		}
 																	}
@@ -2566,9 +2584,19 @@ export default function Home() {
 																	const text =
 																		await navigator.clipboard.readText()
 
-																	setDeviceMessages((prev) => ({
-																		...prev,
+																	if (!activeRoomCode) return
+
+																	const room = roomsRef.current.get(activeRoomCode)
+																	if (!room) return
+
+																	room.deviceMessages = {
+																		...room.deviceMessages,
 																		[device.deviceId]: text,
+																	}
+
+																	setRooms((prev) => ({
+																		...prev,
+																		[activeRoomCode]: room,
 																	}))
 																}}
 																className={`

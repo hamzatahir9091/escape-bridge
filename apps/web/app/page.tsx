@@ -100,14 +100,7 @@ export default function Home() {
 
 	const [roomCode, setRoomCode] = useState<string>("")
 	const [displayRoomCode, setDisplayRoomCode] = useState<string>("")
-	const [roomDevices, setRoomDevices] = useState<
-		{
-			deviceId: string
-			deviceName: string
-			online: boolean
-			isHost: boolean
-		}[]
-	>([])
+
 
 	const [needsDeviceSetup, setNeedsDeviceSetup] = useState(true)
 	const [isHeroAnimationDone, setIsHeroAnimationDone] = useState(false)
@@ -319,6 +312,7 @@ export default function Home() {
 										return
 									}
 
+									
 									// -------------------------
 									// FILE END
 									// -------------------------
@@ -674,7 +668,7 @@ export default function Home() {
 
 					setRoomCode(code)
 					setActiveRoomCode(code)
-					
+
 
 					playInitialRoomAnimation()
 
@@ -705,7 +699,7 @@ export default function Home() {
 
 					room.devices = devices
 
-				
+
 
 					const hasAnotherDevice = devices.some(
 						(device: RoomDevice) =>
@@ -1551,10 +1545,6 @@ export default function Home() {
 			}
 
 			if (data.type === "CHAT_MESSAGE") {
-				const device = roomDevices.find((d) => d.deviceId === senderDeviceId)
-
-				const name = device ? device.deviceName : "Remote"
-
 				setReceivedMessages((prev) => [
 					...prev,
 					{
@@ -1972,20 +1962,943 @@ export default function Home() {
 		setRoomCode(code)
 	}
 
-	return (
+// 	return (
+// 		<div
+// 			ref={Container}
+// 			className="relative bg-[#010610] w-screen h-screen flex flex-  items-center overflow-hidden">
+// 			<button
+// 				className="absolute z-10000 bottom-0 right-0 bg-amber-600 "
+// 				onClick={resetStorage}
+// 				style={{
+// 					padding: "8px 12px",
+// 					borderRadius: "6px",
+// 					border: "1px solid #ccc",
+// 					cursor: "pointer",
+// 				}}>
+// 				Reset App Data
+// 			</button>
+
+// 			{/* hero text */}
+// 			{!isHeroAnimationDone && (
+// 				<div
+// 					ref={heroRef}
+// 					id="heroText"
+// 					className="absolute z-500 inset-0 neon-font">
+// 					<StrokeText
+// 						className="tile absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-2/3 "
+// 						text="Escape-Bridge"
+// 						strokeColor="#A78BFA"
+// 						fillColor="#F8FAFC"
+// 						strokeWidth={1}
+// 						drawDuration={1}
+// 						fillDelay={0}
+// 						stagger={0.05}
+// 						ease="power2.out"
+// 						trigger="mount"
+// 						fillMode="wipe"
+// 						fontSize={130}
+// 						fontWeight={800}
+// 						letterSpacing={-4}
+// 						reverse={false}
+// 						onComplete={handleStrokeComplete}
+// 					/>
+// 				</div>
+// 			)}
+
+// 			{/* intro para */}
+// 			{needsDeviceSetup && (
+// 				<div
+// 					ref={introRef}
+// 					id="introPara"
+// 					className="absolute z-500 h-full w-full flex items-center justify-center opacity-0 pointer-events-none">
+// 					<Intro
+// 						deviceName={deviceName}
+// 						setDeviceNameState={setDeviceNameState}
+// 						handleDeviceSetup={handleDeviceSetup}
+// 						handleIntroSetupDone={handleIntroSetupDone}
+// 					/>
+// 				</div>
+// 			)}
+
+// 			{/* Main site things */}
+// 			<div className="w-full h-full flex flex-col  ">
+// 				{/* ROP BAR */}
+// 				<div className=" w-full h-[10%] grid grid-cols-3  ">
+// 					{/* Side logo */}
+
+// 					{/* Desktop / larger screens */}
+// 					<h1
+// 						id="logo"
+// 						className="hidden md:block neon-font font-extrabold text-xl tracking-wide justify-self-start self-center h-fit ml-[2vw] opacity-0">
+// 						Escape-Bridge
+// 					</h1>
+
+// 					{/* Top Navigation Tabs */}
+// 					<div
+// 						id="navTabs"
+// 						className=" col-span-3 md:col-span-1 justify-self-center self-center opacity-0 ">
+// 						<div className="flex rounded-[14px] border border-slate-800 bg-slate-900 p-1 h-10 w-fit">
+// 							<button
+// 								onClick={() => setActiveTab("room")}
+// 								className={`cursor-pointer rounded-[10px] border-none px-7 py-2.5text-sm font-semibold transition-all duration-200 ease-in-out${activeTab === "room"
+// 									? "bg-slate-800 text-sky-400 shadow-[0_4px_12px_rgba(0,0,0,0.2)]"
+// 									: "bg-transparent text-slate-500 shadow-none"
+// 									}`}>
+// 								Room
+// 							</button>
+
+// 							<button
+// 								onClick={() => setActiveTab("p2p")}
+// 								className={`cursor-pointer rounded-[10px] border-none px-7 py-2.5        text-sm font-semibold transition-all duration-200 ease-in-out        ${activeTab === "p2p"
+// 									? "bg-slate-800 text-sky-400 shadow-[0_4px_12px_rgba(0,0,0,0.2)]"
+// 									: "bg-transparent text-slate-500 shadow-none"
+// 									}`}>
+// 								P2P
+// 							</button>
+// 						</div>
+// 					</div>
+
+// 					{/* navbar create and join room buttons  */}
+// 					<div className="h-full w-full flex gap-4 justify-center items-center">
+// 						<div className="h-full w-full flex gap-4 justify-center items-center">
+// 							{/* CREATE ROOM CONTAINER */}
+// 							<div className="relative flex w-1/3 h-1/2 items-center justify-center">
+// 								{/* Absolute Room Code display (Fades in/out from left) */}
+// 								<div
+// 									className={`absolute right-full mr-4 h-full flex items-center rounded-[11px] bg-[#0b1f2a] border border-[#3ee8ff]/30 overflow-hidden transition-all duration-300 ease-out ${roomCode
+// 										? "opacity-100 translate-x-0 pointer-events-auto"
+// 										: "opacity-0 -translate-x-4 pointer-events-none"
+// 										}`}>
+// 									<button
+// 										onClick={() =>
+// 											roomCode && navigator.clipboard.writeText(roomCode)
+// 										}
+// 										className="h-full px-4 flex items-center justify-center text-[#3ee8ff] hover:bg-[#3ee8ff]/10 transition"
+// 										title="Copy room code">
+// 										<svg
+// 											width="18"
+// 											height="18"
+// 											viewBox="0 0 24 24"
+// 											fill="none"
+// 											stroke="currentColor"
+// 											strokeWidth="2"
+// 											strokeLinecap="round"
+// 											strokeLinejoin="round">
+// 											<rect x="9" y="9" width="13" height="13" rx="2" />
+// 											<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+// 										</svg>
+// 									</button>
+
+// 									<div className="h-3/5 w-px bg-[#3ee8ff]/20" />
+
+// 									<span className="px-5 text-[15px] font-semibold tracking-[0.2em] text-white whitespace-nowrap">
+// 										{roomCode}
+// 									</span>
+// 								</div>
+
+// 								{/* Create Room Button */}
+// 								<button
+// 									onClick={() => {
+// 										if (roomCode) {
+// 											setRoomCode("") // Clears active state when ESC/close is clicked
+// 										} else {
+// 											createRoom()
+// 											createRoomButtonAnimation()
+// 										}
+// 									}}
+// 									className="flex w-full h-full items-center justify-center gap-2 rounded-[11px] bg-gradient-to-br from-[#3ee8ff] via-[#7fd8ff] to-[#4f8cff] px-5 py-[13px] text-[14px] font-semibold text-[#02141c] shadow-[0_8px_26px_-8px_rgba(62,232,255,0.55)] transition hover:shadow-[0_10px_32px_-6px_rgba(62,232,255,0.7)] active:scale-[0.98]">
+// 									{roomCode ? (
+// 										<span className="text-[13px] font-medium tracking-wide text-[#02141c]/80">
+// 											Press{" "}
+// 											<kbd className="rounded bg-[#02141c]/15 px-1.5 py-0.5 font-mono text-[11px] font-bold text-[#02141c]">
+// 												ESC
+// 											</kbd>{" "}
+// 											to close
+// 										</span>
+// 									) : (
+// 										<>
+// 											<span className="text-[20px] leading-none">+</span>
+// 											Create room
+// 										</>
+// 									)}
+// 								</button>
+// 							</div>
+
+// 							{/* JOIN ROOM CONTAINER */}
+// 							<div className="relative w-1/3 h-1/2 flex flex-col items-center justify-center">
+// 								{/* Join Room Button */}
+// 								<button
+// 									ref={joinButtonRef}
+// 									onClick={() => {
+// 										setShowJoinInput((prev) => !prev)
+// 									}}
+// 									className="flex w-full h-full items-center justify-center gap-2 rounded-[11px] bg-gradient-to-br from-[#3ee8ff] via-[#7fd8ff] to-[#4f8cff] px-5 py-[13px] text-[14px] font-semibold text-[#02141c] shadow-[0_8px_26px_-8px_rgba(62,232,255,0.55)] transition hover:shadow-[0_10px_32px_-6px_rgba(62,232,255,0.7)] active:scale-[0.98]">
+// 									{showJoinInput ? (
+// 										<span className="text-[13px] font-medium tracking-wide text-[#02141c]/80">
+// 											Press{" "}
+// 											<kbd className="rounded bg-[#02141c]/15 px-1.5 py-0.5 font-mono text-[11px] font-bold text-[#02141c]">
+// 												ESC
+// 											</kbd>{" "}
+// 											to close
+// 										</span>
+// 									) : (
+// 										<>
+// 											<span className="text-[18px]">→</span>
+// 											Join room
+// 										</>
+// 									)}
+// 								</button>
+
+// 								{/* Join Room Input (Fades in/out downwards) */}
+// 								<div
+// 									className={`absolute top-[115%] left-0 w-full flex items-center gap-2 rounded-[11px] border border-[#3ee8ff]/30 bg-[#0b1f2a] p-2 shadow-[0_8px_26px_-8px_rgba(62,232,255,0.3)] transition-all duration-300 ease-out z-10 ${showJoinInput
+// 										? "opacity-100 translate-y-0 pointer-events-auto"
+// 										: "opacity-0 -translate-y-2 pointer-events-none"
+// 										}`}>
+// 									<input
+// 										ref={joinDialogueInputRef}
+// 										type="text"
+// 										inputMode="numeric"
+// 										maxLength={6}
+// 										placeholder="Enter room code"
+// 										value={joinDialogueCode}
+// 										onChange={(e) => {
+// 											const value = e.target.value.replace(/\D/g, "")
+// 											setJoinDialogueCode(value)
+// 											setRoomCode(value)
+// 										}}
+// 										onKeyDown={(e) => {
+// 											if (e.key === "Enter" && joinDialogueCode.length === 6) {
+// 												joinRoom()
+// 											}
+// 										}}
+// 										className="min-w-0 flex-1 bg-transparent px-3 py-2 text-center text-[14px] font-semibold tracking-[0.25em] text-white outline-none placeholder:tracking-normal placeholder:text-white/30"
+// 									/>
+
+// 									<button
+// 										onClick={() => {
+// 											if (joinDialogueCode.length === 6) {
+// 												joinRoom()
+// 											}
+// 										}}
+// 										className="rounded-[8px] bg-[#3ee8ff] px-4 py-2 text-[13px] font-semibold text-[#02141c] transition hover:bg-[#7fd8ff] active:scale-[0.98]">
+// 										Join
+// 									</button>
+// 								</div>
+// 							</div>
+// 						</div>
+// 					</div>
+// 				</div>
+
+// 				{/* BOTTOM SECTION */}
+// 				<div className="  mx-auto mb-6  w-[80vw] h-[90%] bg font-['Inter',system-ui,-apple-system,sans-serif] text-slate-200 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.6)] ">
+// 					{/* Main Workspace */}
+// 					<div className="h-full ">
+// 						{activeTab === "room" && (
+// 							<div
+// 								id="roomWorkSpace"
+// 								className=" relative z-0  flex flex-col h-full justify-center items-center pointer-events-none ">
+// 								{needsDeviceSetup && (
+// 									<span
+// 										id="roomIntroText"
+// 										className="absolute inset-0  opacity-0 h-1/6 flex justify-center items-center text-slate-300 text-3xl">
+// 										If u want one time setup and seemeless connectivity , u are
+// 										at right place{" "}
+// 									</span>
+// 								)}
+
+// 								<div
+// 									id="roomBox"
+// 									className="absolute bottom-0 bg-amber-50  opacity-0 w-4/5 h-5/6  border-4 rounded-4xl  shadow-2xl [mask-image:linear-gradient(to_bottom,black_50%,transparent_100%)]">
+// 									{/* this is the create and join room card  */}
+// 									{needsDeviceSetup && (
+// 										<>
+// 											<div className="grid grid-cols-2 gap-5 p-7">
+// 												{/* CREATE ROOM */}
+// 												<div
+// 													id="createRoomCard"
+// 													className="relative overflow-hidden rounded-[20px] border border-[rgba(140,180,220,0.12)] bg-gradient-to-b from-[#101a26] to-[#13202f] p-7">
+// 													{/* subtle glow */}
+// 													<div className="pointer-events-none absolute inset-0 bg-[radial-gradient(320px_160px_at_15%_-10%,rgba(62,232,255,0.08),transparent_70%)]" />
+
+// 													<div className="relative">
+// 														{/* label */}
+// 														<div className="mb-[18px] flex items-center gap-[9px] font-mono text-[11px] uppercase tracking-[0.14em] text-[#5c6c82]">
+// 															<span className="h-[6px] w-[6px] rounded-full bg-[#3ee8ff] shadow-[0_0_6px_#3ee8ff]" />
+// 															New session
+// 														</div>
+
+// 														{/* heading */}
+// 														<h2 className="mb-2 font-['Sora'] text-[19px] font-semibold text-[#eaf2fb]">
+// 															Create a room
+// 														</h2>
+
+// 														{/* description */}
+// 														<p className="mb-6 text-[13.5px] leading-[1.55] text-[#93a5bd]">
+// 															Generates a one-time 6-digit code. Share it with
+// 															any device you want to bridge into this room.
+// 														</p>
+
+// 														{/* create button */}
+// 														<button
+// 															onClick={() => {
+// 																createRoom()
+// 																createRoomButtonAnimation()
+// 															}}
+// 															className="flex w-full items-center justify-center gap-2 rounded-[11px] bg-gradient-to-br from-[#3ee8ff] via-[#7fd8ff] to-[#4f8cff] px-5 py-[13px] text-[14px] font-semibold text-[#02141c] shadow-[0_8px_26px_-8px_rgba(62,232,255,0.55)] transition hover:shadow-[0_10px_32px_-6px_rgba(62,232,255,0.7)] active:scale-[0.98]">
+// 															<span className="text-[20px] leading-none">
+// 																+
+// 															</span>
+// 															Create room
+// 														</button>
+
+// 														{/* generated code */}
+// 														<div className="mt-[22px]">
+// 															<div className="mb-4 flex flex-wrap gap-2">
+// 																{[0, 1, 2, 3, 4, 5].map((index) => (
+// 																	<div
+// 																		key={index}
+// 																		className={`min-w-[54px] min-h-[64px] rounded-[10px] border border-[rgba(140,200,255,0.24)] bg-[rgba(62,232,255,0.06)] px-[14px] py-[10px] text-center font-mono text-[30px] font-semibold tracking-[0.02em] text-[#eaf2fb] [text-shadow:0_0_20px_rgba(62,232,255,0.35)] ${index === 3 ? "ml-1" : ""
+// 																			}`}>
+// 																		{displayRoomCode?.[index] || ""}
+// 																	</div>
+// 																))}
+// 															</div>
+
+// 															{/* copy/share */}
+// 															<div className="flex gap-[10px]">
+// 																<button
+// 																	onClick={() => {
+// 																		navigator.clipboard.writeText(
+// 																			displayRoomCode,
+// 																		)
+// 																	}}
+// 																	className="flex w-auto items-center justify-center gap-2 rounded-[9px] border border-[rgba(140,180,220,0.12)] bg-[rgba(255,255,255,0.03)] px-[14px] py-[9px] text-[12.5px] font-semibold text-[#eaf2fb] transition hover:border-[rgba(140,200,255,0.24)] hover:bg-[rgba(255,255,255,0.06)]">
+// 																	Copy code
+// 																</button>
+
+// 																<button className="flex w-auto items-center justify-center gap-2 rounded-[9px] border border-[rgba(140,180,220,0.12)] bg-[rgba(255,255,255,0.03)] px-[14px] py-[9px] text-[12.5px] font-semibold text-[#eaf2fb] transition hover:border-[rgba(140,200,255,0.24)] hover:bg-[rgba(255,255,255,0.06)]">
+// 																	Share
+// 																</button>
+// 															</div>
+// 														</div>
+// 													</div>
+// 												</div>
+
+// 												{/* JOIN ROOM */}
+// 												<div
+// 													id="joinRoomCard"
+// 													className="relative overflow-hidden rounded-[20px] border border-[rgba(140,180,220,0.12)] bg-gradient-to-b from-[#101a26] to-[#13202f] p-7">
+// 													{/* subtle glow */}
+// 													<div className="pointer-events-none absolute inset-0 bg-[radial-gradient(320px_160px_at_15%_-10%,rgba(62,232,255,0.08),transparent_70%)]" />
+
+// 													<div className="relative">
+// 														{/* label */}
+// 														<div className="mb-[18px] flex items-center gap-[9px] font-mono text-[11px] uppercase tracking-[0.14em] text-[#5c6c82]">
+// 															<span className="h-[6px] w-[6px] rounded-full bg-[#3ee8ff] shadow-[0_0_6px_#3ee8ff]" />
+// 															Join session
+// 														</div>
+
+// 														{/* heading */}
+// 														<h2 className="mb-2 font-['Sora'] text-[19px] font-semibold text-[#eaf2fb]">
+// 															Join a room
+// 														</h2>
+
+// 														{/* description */}
+// 														<p className="mb-6 text-[13.5px] leading-[1.55] text-[#93a5bd]">
+// 															Enter the 6-digit code shown on the other device
+// 															to bridge into their room.
+// 														</p>
+
+// 														{/* OTP */}
+// 														<div className="mb-5 flex gap-2">
+// 															<CodeInput
+// 																onComplete={handleCodeComplete}
+// 															// nextFocusRef={joinButtonRef}
+// 															/>
+// 														</div>
+
+// 														{/* join */}
+// 														<button
+// 															ref={joinButtonRef}
+// 															onClick={joinRoom}
+// 															className="flex w-full items-center justify-center gap-2 rounded-[11px] bg-gradient-to-br from-[#3ee8ff] via-[#7fd8ff] to-[#4f8cff] px-5 py-[13px] text-[14px] font-semibold text-[#02141c] shadow-[0_8px_26px_-8px_rgba(62,232,255,0.55)] transition hover:shadow-[0_10px_32px_-6px_rgba(62,232,255,0.7)] active:scale-[0.98]">
+// 															<span className="text-[18px]">→</span>
+// 															Join room
+// 														</button>
+
+// 														{/* helper */}
+// 														<p className="mt-3 text-[12.5px] text-[#5c6c82]">
+// 															Codes are 6 digits and expire when the room
+// 															closes.
+// 														</p>
+// 													</div>
+// 												</div>
+// 											</div>
+
+// 											<div id="roomCardText" className="mt-16">
+// 												<span
+// 													id="roomSelectionText-1"
+// 													className="opacity-0 h-fit bg-gray-700 flex justify-center items-center text-slate-300 text-3xl">
+// 													Just create a room, copy the code and paste it on the
+// 													other device
+// 												</span>
+// 												<span
+// 													id="roomSelectionText-2"
+// 													className="opacity-0 h-fit flex justify-center items-center text-slate-300 text-3xl">
+// 													Congrats!! U just created a room <br />
+// 													Now paste the code on other device and witness the
+// 													happening
+// 												</span>
+// 											</div>
+// 										</>
+// 									)}
+
+// 									{/* Room Switcher */}
+// 									<div className=" flex items-center w-fit gap-1.5 rounded-[12px] border border-[#3ee8ff]/20 bg-[#0b1f2a]/80 p-1.5 backdrop-blur-md shadow-[0_8px_24px_-6px_rgba(0,0,0,0.5)]">
+// 										<div className="px-2 font-mono text-[10px] uppercase tracking-wider text-[#5c6c82] border-r border-[#3ee8ff]/15 mr-1 select-none">
+// 											Active Rooms
+// 										</div>
+// 										{Object.keys(rooms).map((code) => {
+// 											const isActive = activeRoomCode === code
+// 											return (
+// 												<button
+// 													key={code}
+// 													onClick={() => setActiveRoomCode(code)}
+// 													className={`relative flex items-center gap-2 rounded-[8px] px-3 py-1.5 text-xs font-mono font-semibold tracking-wider transition-all duration-200 cursor-pointer ${isActive
+// 														? "bg-gradient-to-r from-[#3ee8ff] to-[#7fd8ff] text-[#02141c] shadow-[0_0_12px_rgba(62,232,255,0.4)]"
+// 														: "bg-transparent text-slate-400 hover:bg-[#3ee8ff]/10 hover:text-[#3ee8ff]"
+// 														}`}>
+// 													<span
+// 														className={`h-1.5 w-1.5 rounded-full ${isActive
+// 															? "bg-[#02141c] shadow-[0_0_4px_#02141c]"
+// 															: "bg-[#3ee8ff]/40"
+// 															}`}
+// 													/>
+// 													{code}
+// 												</button>
+// 											)
+// 										})}
+// 									</div>
+
+// 									{/* Devices Grid / List */}
+// 									<div
+// 										id="DeviceGridList"
+// 										className="h-1/2 grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4 p-5 opacity-0">
+// 										{activeRoomDevices.length === 0 && (
+// 											<div className="col-span-full rounded-2xl border border-slate-800 bg-slate-900 px-5 py-10 text-center text-sm text-slate-500">
+// 												No devices connected to this room yet.
+// 											</div>
+// 										)}
+
+// 										{activeRoomDevices
+// 											.filter((device) => device.deviceId !== getDeviceID())
+// 											.map((device) => {
+// 												const isCurrentDevice =
+// 													device.deviceId === getDeviceID()
+// 												const isConnected =
+// 													activeRoom?.peerStatus[device.deviceId] ?? false
+// 												const selectedFile =
+// 													activeRoom?.selectedFiles[device.deviceId] ?? null
+// 												const isExpanded = expandedDevice === device.deviceId
+
+// 												return (
+// 													<div
+// 														key={device.deviceId}
+// 														className={`
+//     w-full max-w-xl overflow-hidden rounded-2xl
+//     border bg-slate-900
+//     transition-all duration-300
+//     ${isExpanded ? "h-56" : "h-16"}
+//     ${device.online
+// 																? isConnected
+// 																	? "border-sky-400/40 shadow-[0_0_15px_rgba(56,189,248,0.05)]"
+// 																	: "border-slate-800"
+// 																: "cursor-not-allowed opacity-60 border-slate-800"
+// 															}
+//   `}
+// 														onMouseEnter={() => {
+// 															if (device.online) {
+// 																setExpandedDevice(device.deviceId)
+// 															}
+// 														}}
+// 														onMouseLeave={() => {
+// 															if (device.online) {
+// 																setExpandedDevice(null)
+// 															}
+// 														}}
+// 														onClick={() => {
+// 															if (device.online) {
+// 																setExpandedDevice((prev) =>
+// 																	prev === device.deviceId
+// 																		? null
+// 																		: device.deviceId,
+// 																)
+// 															}
+// 														}}>
+// 														{/* ================= COLLAPSED HEADER ================= */}
+
+// 														<div className="flex h-16 items-center gap-3 px-4">
+// 															{/* Device icon */}
+// 															<DeviceIcon
+// 																deviceType={
+// 																	activeRoom?.remoteDeviceInfo[device.deviceId]?.deviceType ?? "unknown"
+// 																}
+// 																size={28}
+// 															/>
+
+// 															{/* Online status */}
+// 															<span
+// 																className={` h-2 w-2 shrink-0 rounded-full ${device.online ? "bg-emerald-500" : "bg-rose-500"}`}
+// 															/>
+
+// 															{/* Device name + badges */}
+// 															<div className="min-w-0 shrink-0">
+// 																<h3 className="m-0 truncate text-sm font-bold text-slate-50">
+// 																	{device.deviceName}
+// 																</h3>
+
+// 																<div className="mt-0.5 flex gap-1">
+// 																	{device.isHost && (
+// 																		<span className="rounded bg-amber-400/15 px-1.5 py-0.5 text-[9px] font-bold text-amber-400">
+// 																			HOST
+// 																		</span>
+// 																	)}
+
+// 																	{isCurrentDevice && (
+// 																		<span className="rounded bg-sky-400/15 px-1.5 py-0.5 text-[9px] font-bold text-sky-400">
+// 																			YOU
+// 																		</span>
+// 																	)}
+// 																</div>
+// 															</div>
+
+// 															{/* Message input */}
+// 															<input
+// 																disabled={!device.online}
+// 																placeholder={`Message to ${device.deviceName}...`}
+// 																value={activeRoom?.deviceMessages?.[device.deviceId] || ""}
+// 																onFocus={() => {
+// 																	if (!isCurrentDevice && device.online) {
+// 																		const room = roomsRef.current.get(roomCode)
+// 																		const channel = room?.dataChannels.get(
+// 																			device.deviceId,
+// 																		)
+
+// 																		if (channel?.readyState === "open") {
+// 																			resetRoomPeerTimer(
+// 																				roomCode,
+// 																				device.deviceId,
+// 																			)
+// 																		}
+
+// 																		ensureRoomConnection(roomCode, device)
+// 																	}
+// 																}}
+// 																onChange={(e) => {
+// 																	const value = e.target.value
+
+// 																	if (!activeRoomCode) return
+
+// 																	const room = roomsRef.current.get(activeRoomCode)
+// 																	if (!room) return
+
+// 																	room.deviceMessages = {
+// 																		...room.deviceMessages,
+// 																		[device.deviceId]: value,
+// 																	}
+
+// 																	setRooms((prev) => ({
+// 																		...prev,
+// 																		[activeRoomCode]: room,
+// 																	}))
+// 																}}
+// 																onKeyDown={(e) => {
+// 																	if (e.key === "Enter") {
+// 																		const text =
+// 																			activeRoom?.deviceMessages?.[device.deviceId]
+
+// 																		if (text && text.trim()) {
+// 																			sendRoomMessage(roomCode, device, text)
+
+// 																			if (!activeRoomCode) return
+
+// 																			const room = roomsRef.current.get(activeRoomCode)
+// 																			if (!room) return
+
+// 																			room.deviceMessages = {
+// 																				...room.deviceMessages,
+// 																				[device.deviceId]: "",
+// 																			}
+
+// 																			setRooms((prev) => ({
+// 																				...prev,
+// 																				[activeRoomCode]: room,
+// 																			}))
+// 																		}
+// 																	}
+// 																}}
+// 																onClick={(e) => e.stopPropagation()}
+// 																className={` min-w-0 flex-1 rounded-lg border border-slate-800 bg-[#090d16] px-3 py-2 text-xs outline-none ${device.online
+// 																	? "text-slate-50 placeholder:text-slate-600"
+// 																	: "cursor-not-allowed text-slate-600"
+// 																	}
+//   `}
+// 															/>
+
+// 															{/* Connection button */}
+// 															{/* {!isCurrentDevice &&
+// 																device.online &&
+// 																(isConnected ? (
+// 																	<button
+// 																		onClick={(e) => {
+// 																			e.stopPropagation()
+
+// 																			disconnectFromRoomDevice(
+// 																				roomCode,
+// 																				device.deviceId,
+// 																			)
+// 																		}}
+// 																		className="
+//                   shrink-0 rounded-lg
+//                   border border-rose-500/30
+//                   bg-rose-500/10
+//                   px-3 py-2
+//                   text-xs font-semibold
+//                   text-rose-500
+//                 ">
+// 																		Disconnect
+// 																	</button>
+// 																) : (
+// 																	<button
+// 																		onClick={(e) => {
+// 																			e.stopPropagation()
+
+// 																			connectToRoomDevice(roomCode, device)
+// 																		}}
+// 																		className="
+//                   shrink-0 rounded-lg
+//                   bg-blue-600
+//                   px-3 py-2
+//                   text-xs font-semibold
+//                   text-white
+//                 ">
+// 																		Connect
+// 																	</button>
+// 																))} */}
+
+// 															{/* Paste */}
+// 															<button
+// 																disabled={!device.online}
+// 																onClick={async (e) => {
+// 																	e.stopPropagation()
+
+// 																	const text =
+// 																		await navigator.clipboard.readText()
+
+// 																	if (!activeRoomCode) return
+
+// 																	const room = roomsRef.current.get(activeRoomCode)
+// 																	if (!room) return
+
+// 																	room.deviceMessages = {
+// 																		...room.deviceMessages,
+// 																		[device.deviceId]: text,
+// 																	}
+
+// 																	setRooms((prev) => ({
+// 																		...prev,
+// 																		[activeRoomCode]: room,
+// 																	}))
+// 																}}
+// 																className={`
+//     shrink-0 rounded-lg px-3 py-2 text-xs font-medium
+//     ${device.online
+// 																		? "text-slate-400 hover:bg-white/10 hover:text-white"
+// 																		: "cursor-not-allowed text-slate-700"
+// 																	}
+//   `}>
+// 																Paste
+// 															</button>
+// 														</div>
+
+// 														{/* ================= EXPANDED FILE AREA ================= */}
+
+// 														<div
+// 															className={`
+//             flex flex-col gap-3 px-4 pb-4
+//             transition-all duration-300
+//             ${isExpanded
+// 																	? "translate-y-0 opacity-100"
+// 																	: "pointer-events-none -translate-y-2 opacity-0"
+// 																}
+//           `}>
+// 															{/* File picker */}
+
+// 															<input
+// 																id={`file-${device.deviceId}`}
+// 																type="file"
+// 																className="hidden"
+// 																onChange={(e) => {
+// 																	const file = e.target.files?.[0] ?? null
+
+// 																	if (!activeRoomCode) return
+
+// 																	const room =
+// 																		roomsRef.current.get(activeRoomCode)
+// 																	if (!room) return
+
+// 																	room.selectedFiles = {
+// 																		...room.selectedFiles,
+// 																		[device.deviceId]: file,
+// 																	}
+
+// 																	setRooms((prev) => ({
+// 																		...prev,
+// 																		[activeRoomCode]: room,
+// 																	}))
+
+// 																	// Allow selecting the same file again later
+// 																	e.target.value = ""
+// 																}}
+// 															/>
+
+// 															<label
+// 																htmlFor={`file-${device.deviceId}`}
+// 																onClick={(e) => e.stopPropagation()}
+// 																className={`
+//               block w-full
+//               cursor-pointer
+//               overflow-hidden
+//               text-ellipsis
+//               whitespace-nowrap
+//               rounded-lg
+//               border border-slate-800
+//               bg-[#090d16]
+//               px-3 py-2
+//               text-center
+//               text-xs
+//               ${selectedFile ? "text-slate-50" : "text-slate-500"}
+//             `}>
+// 																{selectedFile
+// 																	? selectedFile.name
+// 																	: "Choose file"}
+// 															</label>
+
+// 															{/* Send file */}
+
+// 															{!isCurrentDevice &&
+// 																device.online &&
+// 																isConnected && (
+// 																	<button
+// 																		onClick={(e) => {
+// 																			e.stopPropagation()
+
+// 																			if (!selectedFile) {
+// 																				console.log(
+// 																					"No file selected for",
+// 																					device.deviceId,
+// 																				)
+// 																				return
+// 																			}
+
+// 																			sendFileToRoomDevice(
+// 																				roomCode,
+// 																				device.deviceId,
+// 																				selectedFile,
+// 																			)
+// 																		}}
+// 																		disabled={!selectedFile}
+// 																		className={`
+//                   w-full rounded-lg
+//                   p-2
+//                   text-xs font-semibold
+//                   transition-all duration-200
+//                   ${selectedFile
+// 																				? "cursor-pointer bg-emerald-600 text-white hover:bg-emerald-500"
+// 																				: "cursor-not-allowed bg-slate-800 text-slate-500"
+// 																			}
+//                 `}>
+// 																		Send Selected File
+// 																	</button>
+// 																)}
+// 														</div>
+// 													</div>
+// 												)
+// 											})}
+// 									</div>
+
+// 									{/* Room Messages */}
+// 									<div
+// 										id="RoomMessages"
+// 										className="flex h-1/2 flex-col rounded-3xl border border-slate-800/80 bg-[#080d16]/80 p-5 shadow-[0_10px_40px_rgba(0,0,0,0.18)]">
+// 										{/* Header */}
+// 										<div className="mb-4 flex items-center justify-between">
+// 											<div>
+// 												<h3 className="text-sm font-semibold text-slate-100">
+// 													Room Messages
+// 												</h3>
+
+// 												<p className="mt-1 text-[11px] text-slate-500">
+// 													Messages from devices in this room
+// 												</p>
+// 											</div>
+
+// 											<div className="rounded-full border border-slate-800 bg-slate-900/70 px-2.5 py-1 text-[10px] font-medium text-slate-500">
+// 												{activeRoom?.messages.length ?? 0}{" "}
+// 												{(activeRoom?.messages.length ?? 0) === 1 ? "message" : "messages"}
+// 											</div>
+// 										</div>
+
+// 										{/* Messages */}
+// 										<div className="flex flex-1 flex-col gap-3 overflow-y-auto pr-1">
+// 											{(activeRoom?.messages.length ?? 0) === 0 ? (
+// 												<div className="flex flex-1 flex-col items-center justify-center text-center">
+// 													<div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl border border-slate-800 bg-slate-900/70 text-slate-600">
+// 														<svg
+// 															viewBox="0 0 24 24"
+// 															className="h-5 w-5"
+// 															fill="none"
+// 															stroke="currentColor"
+// 															strokeWidth="1.7">
+// 															<path
+// 																strokeLinecap="round"
+// 																strokeLinejoin="round"
+// 																d="M8 10h8M8 14h5m7-2a8 8 0 11-15.3 3.3L3 21l5.7-1.7A8 8 0 0021 12z"
+// 															/>
+// 														</svg>
+// 													</div>
+
+// 													<p className="text-xs font-medium text-slate-500">
+// 														No messages yet
+// 													</p>
+
+// 													<p className="mt-1 text-[11px] text-slate-700">
+// 														Messages from connected devices will appear here
+// 													</p>
+// 												</div>
+// 											) : (
+// 												(activeRoom?.messages ?? []).map((msg) => {
+// 													const isYou = msg.senderDeviceId === getDeviceID()
+
+// 													return (
+// 														<div
+// 															key={`${msg.senderDeviceId}-${msg.text}-${(activeRoom?.messages ?? []).indexOf(msg)}`}
+// 															className={`group flex w-full items-center gap-2 ${isYou ? "justify-end" : "justify-start"
+// 																}`}>
+// 															{/* COPY — YOUR MESSAGE */}
+// 															{isYou && (
+// 																<button
+// 																	onClick={() => {
+// 																		navigator.clipboard.writeText(msg.text)
+// 																	}}
+// 																	title="Copy message"
+// 																	className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-800/80 bg-slate-900/50 text-slate-600 opacity-0 transition-all duration-200 hover:border-slate-700 hover:bg-slate-800 hover:text-slate-300 group-hover:opacity-100">
+// 																	<svg
+// 																		viewBox="0 0 24 24"
+// 																		className="h-3.5 w-3.5"
+// 																		fill="none"
+// 																		stroke="currentColor"
+// 																		strokeWidth="1.8">
+// 																		<rect
+// 																			x="9"
+// 																			y="9"
+// 																			width="11"
+// 																			height="11"
+// 																			rx="2"
+// 																		/>
+// 																		<path
+// 																			strokeLinecap="round"
+// 																			strokeLinejoin="round"
+// 																			d="M15 9V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7a2 2 0 002 2h3"
+// 																		/>
+// 																	</svg>
+// 																</button>
+// 															)}
+
+// 															{/* MESSAGE */}
+// 															<div
+// 																className={`max-w-[75%] rounded-2xl px-3.5 py-2.5 ${isYou
+// 																	? "rounded-br-md border border-sky-400/20 bg-sky-500/[0.10]"
+// 																	: "rounded-bl-md border border-slate-800 bg-[#0c121d]"
+// 																	}`}>
+// 																{/* Sender */}
+// 																<div
+// 																	className={`mb-1 text-[10px] font-semibold ${isYou ? "text-sky-400/80" : "text-slate-500"
+// 																		}`}>
+// 																	{isYou ? "You" : msg.senderDeviceName}
+// 																</div>
+
+// 																{/* Text */}
+// 																<p
+// 																	className={`whitespace-pre-wrap break-words text-[13px] leading-relaxed ${isYou ? "text-slate-200" : "text-slate-300"
+// 																		}`}>
+// 																	{msg.text}
+// 																</p>
+// 															</div>
+
+// 															{/* COPY — INCOMING MESSAGE */}
+// 															{!isYou && (
+// 																<button
+// 																	onClick={() => {
+// 																		navigator.clipboard.writeText(msg.text)
+// 																	}}
+// 																	title="Copy message"
+// 																	className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-800/80 bg-slate-900/50 text-slate-600 opacity-0 transition-all duration-200 hover:border-slate-700 hover:bg-slate-800 hover:text-slate-300 group-hover:opacity-100">
+// 																	<svg
+// 																		viewBox="0 0 24 24"
+// 																		className="h-3.5 w-3.5"
+// 																		fill="none"
+// 																		stroke="currentColor"
+// 																		strokeWidth="1.8">
+// 																		<rect
+// 																			x="9"
+// 																			y="9"
+// 																			width="11"
+// 																			height="11"
+// 																			rx="2"
+// 																		/>
+// 																		<path
+// 																			strokeLinecap="round"
+// 																			strokeLinejoin="round"
+// 																			d="M15 9V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7a2 2 0 002 2h3"
+// 																		/>
+// 																	</svg>
+// 																</button>
+// 															)}
+// 														</div>
+// 													)
+// 												})
+// 											)}
+// 										</div>
+// 									</div>
+// 								</div>
+// 							</div>
+// 						)}
+
+// 						{/* P2P Workspace (Blank as requested) */}
+// 						{activeTab === "p2p" && (
+// 							<div className="min-h-[260px] rounded-2xl border border-slate-800 bg-slate-900">
+// 								{/* Blank P2P Div Container */}
+// 							</div>
+// 						)}
+// 					</div>
+// 				</div>
+// 			</div>
+// 		</div>
+// 	)
+
+
+
+
+return (
 		<div
 			ref={Container}
-			className="relative bg-[#010610] w-screen h-screen flex flex-  items-center overflow-hidden">
+			className="relative w-screen h-screen flex flex- items-center overflow-hidden bg-[#121109] text-[#E8E3D5] eb-grain">
 			<button
-				className="absolute z-10000 bottom-0 right-0 bg-amber-600 "
-				onClick={resetStorage}
-				style={{
-					padding: "8px 12px",
-					borderRadius: "6px",
-					border: "1px solid #ccc",
-					cursor: "pointer",
-				}}>
-				Reset App Data
+				className="absolute z-10000 bottom-0 right-0 rounded-tl-[10px] border-t border-l border-[#E8E3D5]/12 bg-[#1C1B14] px-3.5 py-2 font-mono text-[11px] tracking-wide text-[#8A8576] transition-colors hover:bg-[#232219] hover:text-[#C2552F] eb-focus"
+				onClick={resetStorage}>
+				Reset app data
 			</button>
 
 			{/* hero text */}
@@ -1997,8 +2910,8 @@ export default function Home() {
 					<StrokeText
 						className="tile absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-2/3 "
 						text="Escape-Bridge"
-						strokeColor="#A78BFA"
-						fillColor="#F8FAFC"
+						strokeColor="#C2552F"
+						fillColor="#EDE8DA"
 						strokeWidth={1}
 						drawDuration={1}
 						fillDelay={0}
@@ -2031,37 +2944,38 @@ export default function Home() {
 			)}
 
 			{/* Main site things */}
-			<div className="w-full h-full flex flex-col  ">
+			<div className="w-full h-full flex flex-col font-['Inter_Tight','Inter',system-ui,-apple-system,sans-serif]">
 				{/* ROP BAR */}
-				<div className=" w-full h-[10%] grid grid-cols-3  ">
+				<div className="w-full h-auto py-3 md:py-0 md:h-[10%] grid grid-cols-3 gap-y-3 border-b border-[#E8E3D5]/10 bg-[#15140D]/70">
 					{/* Side logo */}
 
 					{/* Desktop / larger screens */}
 					<h1
 						id="logo"
-						className="hidden md:block neon-font font-extrabold text-xl tracking-wide justify-self-start self-center h-fit ml-[2vw] opacity-0">
+						className="hidden md:flex items-center gap-2.5 font-extrabold text-[17px] tracking-[-0.02em] text-[#EDE8DA] justify-self-start self-center h-fit ml-[2vw] opacity-0">
+						<span className="inline-block h-[14px] w-[3px] rounded-full bg-[#C2552F]" />
 						Escape-Bridge
 					</h1>
 
 					{/* Top Navigation Tabs */}
 					<div
 						id="navTabs"
-						className=" col-span-3 md:col-span-1 justify-self-center self-center opacity-0 ">
-						<div className="flex rounded-[14px] border border-slate-800 bg-slate-900 p-1 h-10 w-fit">
+						className="col-span-3 md:col-span-1 justify-self-center self-center opacity-0">
+						<div className="flex rounded-[10px] border border-[#E8E3D5]/12 bg-[#1A1912] p-1 h-10 w-fit shadow-[inset_0_1px_0_rgba(232,227,213,0.05)]">
 							<button
 								onClick={() => setActiveTab("room")}
-								className={`cursor-pointer rounded-[10px] border-none px-7 py-2.5text-sm font-semibold transition-all duration-200 ease-in-out${activeTab === "room"
-									? "bg-slate-800 text-sky-400 shadow-[0_4px_12px_rgba(0,0,0,0.2)]"
-									: "bg-transparent text-slate-500 shadow-none"
+								className={`cursor-pointer rounded-[7px] border-none px-6 sm:px-7 py-2 text-[13px] font-semibold tracking-[-0.01em] transition-all duration-200 ease-in-out eb-focus ${activeTab === "room"
+									? "bg-[#26251C] text-[#EDE8DA] shadow-[inset_0_1px_0_rgba(232,227,213,0.08),0_1px_2px_rgba(0,0,0,0.5)]"
+									: "bg-transparent text-[#7E7A6B] hover:text-[#B5AF9D] shadow-none"
 									}`}>
 								Room
 							</button>
 
 							<button
 								onClick={() => setActiveTab("p2p")}
-								className={`cursor-pointer rounded-[10px] border-none px-7 py-2.5        text-sm font-semibold transition-all duration-200 ease-in-out        ${activeTab === "p2p"
-									? "bg-slate-800 text-sky-400 shadow-[0_4px_12px_rgba(0,0,0,0.2)]"
-									: "bg-transparent text-slate-500 shadow-none"
+								className={`cursor-pointer rounded-[7px] border-none px-6 sm:px-7 py-2 text-[13px] font-semibold tracking-[-0.01em] transition-all duration-200 ease-in-out eb-focus ${activeTab === "p2p"
+									? "bg-[#26251C] text-[#EDE8DA] shadow-[inset_0_1px_0_rgba(232,227,213,0.08),0_1px_2px_rgba(0,0,0,0.5)]"
+									: "bg-transparent text-[#7E7A6B] hover:text-[#B5AF9D] shadow-none"
 									}`}>
 								P2P
 							</button>
@@ -2069,13 +2983,13 @@ export default function Home() {
 					</div>
 
 					{/* navbar create and join room buttons  */}
-					<div className="h-full w-full flex gap-4 justify-center items-center">
-						<div className="h-full w-full flex gap-4 justify-center items-center">
+					<div className="col-span-3 md:col-span-1 h-full w-full flex gap-4 justify-center items-center">
+						<div className="h-full w-full flex gap-3 sm:gap-4 justify-center items-center px-3 md:px-0">
 							{/* CREATE ROOM CONTAINER */}
-							<div className="relative flex w-1/3 h-1/2 items-center justify-center">
+							<div className="relative flex w-[46%] md:w-1/3 h-10 md:h-1/2 items-center justify-center">
 								{/* Absolute Room Code display (Fades in/out from left) */}
 								<div
-									className={`absolute right-full mr-4 h-full flex items-center rounded-[11px] bg-[#0b1f2a] border border-[#3ee8ff]/30 overflow-hidden transition-all duration-300 ease-out ${roomCode
+									className={`absolute right-full mr-3 h-full flex items-center rounded-[9px] border border-[#E8E3D5]/12 bg-[#1A1912] overflow-hidden shadow-[0_6px_18px_-10px_rgba(0,0,0,0.9)] transition-all duration-300 ease-out ${roomCode
 										? "opacity-100 translate-x-0 pointer-events-auto"
 										: "opacity-0 -translate-x-4 pointer-events-none"
 										}`}>
@@ -2083,7 +2997,7 @@ export default function Home() {
 										onClick={() =>
 											roomCode && navigator.clipboard.writeText(roomCode)
 										}
-										className="h-full px-4 flex items-center justify-center text-[#3ee8ff] hover:bg-[#3ee8ff]/10 transition"
+										className="h-full px-3.5 flex items-center justify-center text-[#8A8576] transition-colors hover:bg-[#E8E3D5]/[0.06] hover:text-[#C2552F] eb-focus"
 										title="Copy room code">
 										<svg
 											width="18"
@@ -2099,9 +3013,9 @@ export default function Home() {
 										</svg>
 									</button>
 
-									<div className="h-3/5 w-px bg-[#3ee8ff]/20" />
+									<div className="h-3/5 w-px bg-[#E8E3D5]/12" />
 
-									<span className="px-5 text-[15px] font-semibold tracking-[0.2em] text-white whitespace-nowrap">
+									<span className="px-4 font-mono text-[14px] font-semibold tracking-[0.22em] text-[#EDE8DA] whitespace-nowrap">
 										{roomCode}
 									</span>
 								</div>
@@ -2116,18 +3030,18 @@ export default function Home() {
 											createRoomButtonAnimation()
 										}
 									}}
-									className="flex w-full h-full items-center justify-center gap-2 rounded-[11px] bg-gradient-to-br from-[#3ee8ff] via-[#7fd8ff] to-[#4f8cff] px-5 py-[13px] text-[14px] font-semibold text-[#02141c] shadow-[0_8px_26px_-8px_rgba(62,232,255,0.55)] transition hover:shadow-[0_10px_32px_-6px_rgba(62,232,255,0.7)] active:scale-[0.98]">
+									className="eb-tactile eb-focus flex w-full h-full items-center justify-center gap-2 rounded-[9px] bg-[#C2552F] px-4 text-[13px] font-semibold tracking-[-0.01em] text-[#1A0E08] shadow-[inset_0_1px_0_rgba(255,255,255,0.22),inset_0_-2px_0_rgba(0,0,0,0.28),0_6px_16px_-10px_rgba(194,85,47,0.9)] transition hover:bg-[#CE5F37] active:translate-y-px">
 									{roomCode ? (
-										<span className="text-[13px] font-medium tracking-wide text-[#02141c]/80">
+										<span className="text-[12.5px] font-medium tracking-wide text-[#1A0E08]/85">
 											Press{" "}
-											<kbd className="rounded bg-[#02141c]/15 px-1.5 py-0.5 font-mono text-[11px] font-bold text-[#02141c]">
+											<kbd className="rounded bg-[#1A0E08]/15 px-1.5 py-0.5 font-mono text-[11px] font-bold text-[#1A0E08]">
 												ESC
 											</kbd>{" "}
 											to close
 										</span>
 									) : (
 										<>
-											<span className="text-[20px] leading-none">+</span>
+											<span className="text-[18px] leading-none">+</span>
 											Create room
 										</>
 									)}
@@ -2135,25 +3049,25 @@ export default function Home() {
 							</div>
 
 							{/* JOIN ROOM CONTAINER */}
-							<div className="relative w-1/3 h-1/2 flex flex-col items-center justify-center">
+							<div className="relative w-[46%] md:w-1/3 h-10 md:h-1/2 flex flex-col items-center justify-center">
 								{/* Join Room Button */}
 								<button
 									ref={joinButtonRef}
 									onClick={() => {
 										setShowJoinInput((prev) => !prev)
 									}}
-									className="flex w-full h-full items-center justify-center gap-2 rounded-[11px] bg-gradient-to-br from-[#3ee8ff] via-[#7fd8ff] to-[#4f8cff] px-5 py-[13px] text-[14px] font-semibold text-[#02141c] shadow-[0_8px_26px_-8px_rgba(62,232,255,0.55)] transition hover:shadow-[0_10px_32px_-6px_rgba(62,232,255,0.7)] active:scale-[0.98]">
+									className="eb-tactile eb-focus flex w-full h-full items-center justify-center gap-2 rounded-[9px] border border-[#E8E3D5]/14 bg-[#232219] px-4 text-[13px] font-semibold tracking-[-0.01em] text-[#EDE8DA] shadow-[inset_0_1px_0_rgba(232,227,213,0.07),inset_0_-2px_0_rgba(0,0,0,0.35)] transition hover:bg-[#2B2A20] active:translate-y-px">
 									{showJoinInput ? (
-										<span className="text-[13px] font-medium tracking-wide text-[#02141c]/80">
+										<span className="text-[12.5px] font-medium tracking-wide text-[#B5AF9D]">
 											Press{" "}
-											<kbd className="rounded bg-[#02141c]/15 px-1.5 py-0.5 font-mono text-[11px] font-bold text-[#02141c]">
+											<kbd className="rounded bg-[#E8E3D5]/10 px-1.5 py-0.5 font-mono text-[11px] font-bold text-[#EDE8DA]">
 												ESC
 											</kbd>{" "}
 											to close
 										</span>
 									) : (
 										<>
-											<span className="text-[18px]">→</span>
+											<span className="text-[16px] text-[#C2552F]">→</span>
 											Join room
 										</>
 									)}
@@ -2161,7 +3075,7 @@ export default function Home() {
 
 								{/* Join Room Input (Fades in/out downwards) */}
 								<div
-									className={`absolute top-[115%] left-0 w-full flex items-center gap-2 rounded-[11px] border border-[#3ee8ff]/30 bg-[#0b1f2a] p-2 shadow-[0_8px_26px_-8px_rgba(62,232,255,0.3)] transition-all duration-300 ease-out z-10 ${showJoinInput
+									className={`absolute top-[115%] left-0 w-full flex items-center gap-2 rounded-[10px] border border-[#E8E3D5]/12 bg-[#1A1912] p-2 shadow-[0_18px_40px_-20px_rgba(0,0,0,0.95)] transition-all duration-300 ease-out z-10 ${showJoinInput
 										? "opacity-100 translate-y-0 pointer-events-auto"
 										: "opacity-0 -translate-y-2 pointer-events-none"
 										}`}>
@@ -2182,7 +3096,7 @@ export default function Home() {
 												joinRoom()
 											}
 										}}
-										className="min-w-0 flex-1 bg-transparent px-3 py-2 text-center text-[14px] font-semibold tracking-[0.25em] text-white outline-none placeholder:tracking-normal placeholder:text-white/30"
+										className="min-w-0 flex-1 rounded-[7px] bg-[#121109] px-3 py-2 text-center font-mono text-[14px] font-semibold tracking-[0.25em] text-[#EDE8DA] outline-none ring-1 ring-inset ring-[#E8E3D5]/10 focus:ring-[#C2552F]/50 placeholder:font-sans placeholder:tracking-normal placeholder:text-[#6E6A5D]"
 									/>
 
 									<button
@@ -2191,7 +3105,7 @@ export default function Home() {
 												joinRoom()
 											}
 										}}
-										className="rounded-[8px] bg-[#3ee8ff] px-4 py-2 text-[13px] font-semibold text-[#02141c] transition hover:bg-[#7fd8ff] active:scale-[0.98]">
+										className="eb-tactile eb-focus rounded-[7px] bg-[#C2552F] px-4 py-2 text-[12.5px] font-semibold text-[#1A0E08] shadow-[inset_0_1px_0_rgba(255,255,255,0.2),inset_0_-2px_0_rgba(0,0,0,0.28)] transition hover:bg-[#CE5F37] active:translate-y-px">
 										Join
 									</button>
 								</div>
@@ -2201,17 +3115,17 @@ export default function Home() {
 				</div>
 
 				{/* BOTTOM SECTION */}
-				<div className="  mx-auto mb-6  w-[80vw] h-[90%] bg font-['Inter',system-ui,-apple-system,sans-serif] text-slate-200 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.6)] ">
+				<div className="mx-auto mb-4 sm:mb-6 w-[94vw] md:w-[80vw] h-[90%] text-[#E8E3D5]">
 					{/* Main Workspace */}
 					<div className="h-full ">
 						{activeTab === "room" && (
 							<div
 								id="roomWorkSpace"
-								className=" relative z-0  flex flex-col h-full justify-center items-center pointer-events-none ">
+								className="relative z-0 flex flex-col h-full justify-center items-center pointer-events-none">
 								{needsDeviceSetup && (
 									<span
 										id="roomIntroText"
-										className="absolute inset-0  opacity-0 h-1/6 flex justify-center items-center text-slate-300 text-3xl">
+										className="absolute inset-0 opacity-0 h-1/6 flex justify-center items-center px-6 text-center text-[#B5AF9D] text-xl sm:text-2xl lg:text-3xl leading-snug tracking-[-0.02em]">
 										If u want one time setup and seemeless connectivity , u are
 										at right place{" "}
 									</span>
@@ -2219,32 +3133,32 @@ export default function Home() {
 
 								<div
 									id="roomBox"
-									className="absolute bottom-0 bg-amber-50  opacity-0 w-4/5 h-5/6  border-4 rounded-4xl  shadow-2xl [mask-image:linear-gradient(to_bottom,black_50%,transparent_100%)]">
+									className="absolute bottom-0 opacity-0 w-full sm:w-11/12 lg:w-4/5 h-5/6 flex flex-col gap-4 overflow-hidden rounded-t-[22px] border border-b-0 border-[#E8E3D5]/12 bg-[#17160F] p-3 sm:p-5 shadow-[0_-30px_80px_-40px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(232,227,213,0.06)] [mask-image:linear-gradient(to_bottom,black_50%,transparent_100%)]">
 									{/* this is the create and join room card  */}
 									{needsDeviceSetup && (
 										<>
-											<div className="grid grid-cols-2 gap-5 p-7">
+											<div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 p-1 sm:p-2">
 												{/* CREATE ROOM */}
 												<div
 													id="createRoomCard"
-													className="relative overflow-hidden rounded-[20px] border border-[rgba(140,180,220,0.12)] bg-gradient-to-b from-[#101a26] to-[#13202f] p-7">
+													className="relative overflow-hidden rounded-[16px] border border-[#E8E3D5]/12 bg-[#1C1B14] p-6 sm:p-7 shadow-[inset_0_1px_0_rgba(232,227,213,0.06),0_20px_40px_-32px_rgba(0,0,0,1)]">
 													{/* subtle glow */}
-													<div className="pointer-events-none absolute inset-0 bg-[radial-gradient(320px_160px_at_15%_-10%,rgba(62,232,255,0.08),transparent_70%)]" />
+													<div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#C2552F]/50 to-transparent" />
 
 													<div className="relative">
 														{/* label */}
-														<div className="mb-[18px] flex items-center gap-[9px] font-mono text-[11px] uppercase tracking-[0.14em] text-[#5c6c82]">
-															<span className="h-[6px] w-[6px] rounded-full bg-[#3ee8ff] shadow-[0_0_6px_#3ee8ff]" />
+														<div className="mb-[18px] flex items-center gap-2.5 font-mono text-[11px] tracking-[0.12em] text-[#7E7A6B]">
+															<span className="h-[7px] w-[7px] rounded-full bg-[#C2552F] shadow-[0_0_0_1px_rgba(194,85,47,0.35),inset_0_1px_0_rgba(255,255,255,0.45)]" />
 															New session
 														</div>
 
 														{/* heading */}
-														<h2 className="mb-2 font-['Sora'] text-[19px] font-semibold text-[#eaf2fb]">
+														<h2 className="mb-2 text-[20px] font-bold tracking-[-0.02em] text-[#EDE8DA]">
 															Create a room
 														</h2>
 
 														{/* description */}
-														<p className="mb-6 text-[13.5px] leading-[1.55] text-[#93a5bd]">
+														<p className="mb-6 max-w-[42ch] text-[13.5px] leading-[1.6] text-[#8A8576]">
 															Generates a one-time 6-digit code. Share it with
 															any device you want to bridge into this room.
 														</p>
@@ -2255,8 +3169,8 @@ export default function Home() {
 																createRoom()
 																createRoomButtonAnimation()
 															}}
-															className="flex w-full items-center justify-center gap-2 rounded-[11px] bg-gradient-to-br from-[#3ee8ff] via-[#7fd8ff] to-[#4f8cff] px-5 py-[13px] text-[14px] font-semibold text-[#02141c] shadow-[0_8px_26px_-8px_rgba(62,232,255,0.55)] transition hover:shadow-[0_10px_32px_-6px_rgba(62,232,255,0.7)] active:scale-[0.98]">
-															<span className="text-[20px] leading-none">
+															className="eb-tactile eb-focus flex w-full items-center justify-center gap-2 rounded-[9px] bg-[#C2552F] px-5 py-3 text-[14px] font-semibold text-[#1A0E08] shadow-[inset_0_1px_0_rgba(255,255,255,0.22),inset_0_-2px_0_rgba(0,0,0,0.28),0_10px_24px_-16px_rgba(194,85,47,0.9)] transition hover:bg-[#CE5F37] active:translate-y-px">
+															<span className="text-[18px] leading-none">
 																+
 															</span>
 															Create room
@@ -2268,7 +3182,7 @@ export default function Home() {
 																{[0, 1, 2, 3, 4, 5].map((index) => (
 																	<div
 																		key={index}
-																		className={`min-w-[54px] min-h-[64px] rounded-[10px] border border-[rgba(140,200,255,0.24)] bg-[rgba(62,232,255,0.06)] px-[14px] py-[10px] text-center font-mono text-[30px] font-semibold tracking-[0.02em] text-[#eaf2fb] [text-shadow:0_0_20px_rgba(62,232,255,0.35)] ${index === 3 ? "ml-1" : ""
+																		className={`min-w-[48px] sm:min-w-[54px] min-h-[60px] sm:min-h-[64px] flex items-center justify-center rounded-[8px] border border-[#E8E3D5]/10 bg-[#121109] px-3 py-2 text-center font-mono text-[28px] sm:text-[30px] font-semibold text-[#EDE8DA] shadow-[inset_0_2px_6px_rgba(0,0,0,0.6)] ${index === 3 ? "ml-1" : ""
 																			}`}>
 																		{displayRoomCode?.[index] || ""}
 																	</div>
@@ -2283,11 +3197,11 @@ export default function Home() {
 																			displayRoomCode,
 																		)
 																	}}
-																	className="flex w-auto items-center justify-center gap-2 rounded-[9px] border border-[rgba(140,180,220,0.12)] bg-[rgba(255,255,255,0.03)] px-[14px] py-[9px] text-[12.5px] font-semibold text-[#eaf2fb] transition hover:border-[rgba(140,200,255,0.24)] hover:bg-[rgba(255,255,255,0.06)]">
+																	className="eb-tactile eb-focus flex w-auto items-center justify-center gap-2 rounded-[8px] border border-[#E8E3D5]/12 bg-[#232219] px-3.5 py-2 text-[12.5px] font-semibold text-[#EDE8DA] shadow-[inset_0_1px_0_rgba(232,227,213,0.06)] transition hover:border-[#E8E3D5]/20 hover:bg-[#2B2A20] active:translate-y-px">
 																	Copy code
 																</button>
 
-																<button className="flex w-auto items-center justify-center gap-2 rounded-[9px] border border-[rgba(140,180,220,0.12)] bg-[rgba(255,255,255,0.03)] px-[14px] py-[9px] text-[12.5px] font-semibold text-[#eaf2fb] transition hover:border-[rgba(140,200,255,0.24)] hover:bg-[rgba(255,255,255,0.06)]">
+																<button className="eb-tactile eb-focus flex w-auto items-center justify-center gap-2 rounded-[8px] border border-[#E8E3D5]/12 bg-[#232219] px-3.5 py-2 text-[12.5px] font-semibold text-[#EDE8DA] shadow-[inset_0_1px_0_rgba(232,227,213,0.06)] transition hover:border-[#E8E3D5]/20 hover:bg-[#2B2A20] active:translate-y-px">
 																	Share
 																</button>
 															</div>
@@ -2298,24 +3212,24 @@ export default function Home() {
 												{/* JOIN ROOM */}
 												<div
 													id="joinRoomCard"
-													className="relative overflow-hidden rounded-[20px] border border-[rgba(140,180,220,0.12)] bg-gradient-to-b from-[#101a26] to-[#13202f] p-7">
+													className="relative overflow-hidden rounded-[16px] border border-[#E8E3D5]/12 bg-[#1C1B14] p-6 sm:p-7 shadow-[inset_0_1px_0_rgba(232,227,213,0.06),0_20px_40px_-32px_rgba(0,0,0,1)]">
 													{/* subtle glow */}
-													<div className="pointer-events-none absolute inset-0 bg-[radial-gradient(320px_160px_at_15%_-10%,rgba(62,232,255,0.08),transparent_70%)]" />
+													<div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#7C8560]/50 to-transparent" />
 
 													<div className="relative">
 														{/* label */}
-														<div className="mb-[18px] flex items-center gap-[9px] font-mono text-[11px] uppercase tracking-[0.14em] text-[#5c6c82]">
-															<span className="h-[6px] w-[6px] rounded-full bg-[#3ee8ff] shadow-[0_0_6px_#3ee8ff]" />
+														<div className="mb-[18px] flex items-center gap-2.5 font-mono text-[11px] tracking-[0.12em] text-[#7E7A6B]">
+															<span className="h-[7px] w-[7px] rounded-full bg-[#9DB06A] shadow-[0_0_0_1px_rgba(157,176,106,0.3),inset_0_1px_0_rgba(255,255,255,0.45)]" />
 															Join session
 														</div>
 
 														{/* heading */}
-														<h2 className="mb-2 font-['Sora'] text-[19px] font-semibold text-[#eaf2fb]">
+														<h2 className="mb-2 text-[20px] font-bold tracking-[-0.02em] text-[#EDE8DA]">
 															Join a room
 														</h2>
 
 														{/* description */}
-														<p className="mb-6 text-[13.5px] leading-[1.55] text-[#93a5bd]">
+														<p className="mb-6 max-w-[42ch] text-[13.5px] leading-[1.6] text-[#8A8576]">
 															Enter the 6-digit code shown on the other device
 															to bridge into their room.
 														</p>
@@ -2332,13 +3246,13 @@ export default function Home() {
 														<button
 															ref={joinButtonRef}
 															onClick={joinRoom}
-															className="flex w-full items-center justify-center gap-2 rounded-[11px] bg-gradient-to-br from-[#3ee8ff] via-[#7fd8ff] to-[#4f8cff] px-5 py-[13px] text-[14px] font-semibold text-[#02141c] shadow-[0_8px_26px_-8px_rgba(62,232,255,0.55)] transition hover:shadow-[0_10px_32px_-6px_rgba(62,232,255,0.7)] active:scale-[0.98]">
-															<span className="text-[18px]">→</span>
+															className="eb-tactile eb-focus flex w-full items-center justify-center gap-2 rounded-[9px] border border-[#E8E3D5]/14 bg-[#232219] px-5 py-3 text-[14px] font-semibold text-[#EDE8DA] shadow-[inset_0_1px_0_rgba(232,227,213,0.07),inset_0_-2px_0_rgba(0,0,0,0.35)] transition hover:bg-[#2B2A20] active:translate-y-px">
+															<span className="text-[16px] text-[#C2552F]">→</span>
 															Join room
 														</button>
 
 														{/* helper */}
-														<p className="mt-3 text-[12.5px] text-[#5c6c82]">
+														<p className="mt-3 text-[12.5px] text-[#6E6A5D]">
 															Codes are 6 digits and expire when the room
 															closes.
 														</p>
@@ -2349,13 +3263,13 @@ export default function Home() {
 											<div id="roomCardText" className="mt-16">
 												<span
 													id="roomSelectionText-1"
-													className="opacity-0 h-fit bg-gray-700 flex justify-center items-center text-slate-300 text-3xl">
+													className="opacity-0 h-fit rounded-[14px] border border-[#E8E3D5]/10 bg-[#1C1B14] px-6 py-5 flex justify-center items-center text-center text-[#B5AF9D] text-xl sm:text-2xl lg:text-3xl leading-snug tracking-[-0.02em]">
 													Just create a room, copy the code and paste it on the
 													other device
 												</span>
 												<span
 													id="roomSelectionText-2"
-													className="opacity-0 h-fit flex justify-center items-center text-slate-300 text-3xl">
+													className="opacity-0 h-fit flex justify-center items-center px-6 text-center text-[#B5AF9D] text-xl sm:text-2xl lg:text-3xl leading-snug tracking-[-0.02em]">
 													Congrats!! U just created a room <br />
 													Now paste the code on other device and witness the
 													happening
@@ -2365,9 +3279,9 @@ export default function Home() {
 									)}
 
 									{/* Room Switcher */}
-									<div className=" flex items-center w-fit gap-1.5 rounded-[12px] border border-[#3ee8ff]/20 bg-[#0b1f2a]/80 p-1.5 backdrop-blur-md shadow-[0_8px_24px_-6px_rgba(0,0,0,0.5)]">
-										<div className="px-2 font-mono text-[10px] uppercase tracking-wider text-[#5c6c82] border-r border-[#3ee8ff]/15 mr-1 select-none">
-											Active Rooms
+									<div className="flex w-fit max-w-full items-center gap-1.5 overflow-x-auto rounded-[10px] border border-[#E8E3D5]/12 bg-[#1C1B14] p-1.5 shadow-[inset_0_1px_0_rgba(232,227,213,0.06)] eb-scroll">
+										<div className="shrink-0 px-2 font-mono text-[10px] tracking-[0.12em] text-[#6E6A5D] border-r border-[#E8E3D5]/12 mr-1 select-none">
+											Active rooms
 										</div>
 										{Object.keys(rooms).map((code) => {
 											const isActive = activeRoomCode === code
@@ -2375,14 +3289,14 @@ export default function Home() {
 												<button
 													key={code}
 													onClick={() => setActiveRoomCode(code)}
-													className={`relative flex items-center gap-2 rounded-[8px] px-3 py-1.5 text-xs font-mono font-semibold tracking-wider transition-all duration-200 cursor-pointer ${isActive
-														? "bg-gradient-to-r from-[#3ee8ff] to-[#7fd8ff] text-[#02141c] shadow-[0_0_12px_rgba(62,232,255,0.4)]"
-														: "bg-transparent text-slate-400 hover:bg-[#3ee8ff]/10 hover:text-[#3ee8ff]"
+													className={`relative flex shrink-0 items-center gap-2 rounded-[7px] px-3 py-1.5 font-mono text-xs font-semibold tracking-[0.08em] transition-all duration-200 cursor-pointer eb-focus ${isActive
+														? "bg-[#2E2C21] text-[#EDE8DA] shadow-[inset_0_1px_0_rgba(232,227,213,0.08)]"
+														: "bg-transparent text-[#7E7A6B] hover:bg-[#E8E3D5]/[0.05] hover:text-[#B5AF9D]"
 														}`}>
 													<span
 														className={`h-1.5 w-1.5 rounded-full ${isActive
-															? "bg-[#02141c] shadow-[0_0_4px_#02141c]"
-															: "bg-[#3ee8ff]/40"
+															? "bg-[#C2552F] shadow-[0_0_0_1px_rgba(194,85,47,0.35),0_0_6px_rgba(194,85,47,0.55)]"
+															: "bg-[#4A473C]"
 															}`}
 													/>
 													{code}
@@ -2394,10 +3308,16 @@ export default function Home() {
 									{/* Devices Grid / List */}
 									<div
 										id="DeviceGridList"
-										className="h-1/2 grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4 p-5 opacity-0">
+										className="h-1/2 grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(320px,1fr))] content-start gap-3 sm:gap-4 overflow-y-auto p-1 sm:p-2 opacity-0 eb-scroll">
 										{activeRoomDevices.length === 0 && (
-											<div className="col-span-full rounded-2xl border border-slate-800 bg-slate-900 px-5 py-10 text-center text-sm text-slate-500">
-												No devices connected to this room yet.
+											<div className="col-span-full rounded-[14px] border border-dashed border-[#E8E3D5]/12 bg-[#1A1912] px-5 py-10 text-center">
+												<p className="text-sm font-semibold text-[#B5AF9D]">
+													No devices connected to this room yet.
+												</p>
+												<p className="mt-1.5 text-xs text-[#6E6A5D]">
+													Share the room code and the other device will appear
+													here.
+												</p>
 											</div>
 										)}
 
@@ -2416,15 +3336,15 @@ export default function Home() {
 													<div
 														key={device.deviceId}
 														className={`
-    w-full max-w-xl overflow-hidden rounded-2xl
-    border bg-slate-900
+    w-full max-w-xl overflow-hidden rounded-[14px]
+    border bg-[#1C1B14]
     transition-all duration-300
     ${isExpanded ? "h-56" : "h-16"}
     ${device.online
 																? isConnected
-																	? "border-sky-400/40 shadow-[0_0_15px_rgba(56,189,248,0.05)]"
-																	: "border-slate-800"
-																: "cursor-not-allowed opacity-60 border-slate-800"
+																	? "border-[#7C8560]/55 shadow-[inset_0_1px_0_rgba(232,227,213,0.06),0_14px_30px_-24px_rgba(0,0,0,1)]"
+																	: "border-[#E8E3D5]/12 shadow-[inset_0_1px_0_rgba(232,227,213,0.05)]"
+																: "cursor-not-allowed opacity-55 border-[#E8E3D5]/8"
 															}
   `}
 														onMouseEnter={() => {
@@ -2448,7 +3368,7 @@ export default function Home() {
 														}}>
 														{/* ================= COLLAPSED HEADER ================= */}
 
-														<div className="flex h-16 items-center gap-3 px-4">
+														<div className="flex h-16 items-center gap-2.5 sm:gap-3 px-3 sm:px-4 text-[#B5AF9D]">
 															{/* Device icon */}
 															<DeviceIcon
 																deviceType={
@@ -2459,24 +3379,26 @@ export default function Home() {
 
 															{/* Online status */}
 															<span
-																className={` h-2 w-2 shrink-0 rounded-full ${device.online ? "bg-emerald-500" : "bg-rose-500"}`}
+																className={` h-2.5 w-2.5 shrink-0 rounded-full ${device.online
+																	? "bg-[#9DB06A] shadow-[0_0_0_1px_rgba(157,176,106,0.35),0_0_7px_rgba(157,176,106,0.5),inset_0_1px_0_rgba(255,255,255,0.45)]"
+																	: "bg-[#4A473C] shadow-[inset_0_1px_0_rgba(232,227,213,0.08)]"}`}
 															/>
 
 															{/* Device name + badges */}
-															<div className="min-w-0 shrink-0">
-																<h3 className="m-0 truncate text-sm font-bold text-slate-50">
+															<div className="min-w-0 shrink-0 max-w-[38%] sm:max-w-none">
+																<h3 className="m-0 truncate text-[13px] font-semibold tracking-[-0.01em] text-[#EDE8DA]">
 																	{device.deviceName}
 																</h3>
 
 																<div className="mt-0.5 flex gap-1">
 																	{device.isHost && (
-																		<span className="rounded bg-amber-400/15 px-1.5 py-0.5 text-[9px] font-bold text-amber-400">
+																		<span className="rounded-[4px] border border-[#C9922F]/35 bg-[#C9922F]/12 px-1.5 py-0.5 font-mono text-[9px] font-bold tracking-[0.08em] text-[#C9922F]">
 																			HOST
 																		</span>
 																	)}
 
 																	{isCurrentDevice && (
-																		<span className="rounded bg-sky-400/15 px-1.5 py-0.5 text-[9px] font-bold text-sky-400">
+																		<span className="rounded-[4px] border border-[#E8E3D5]/20 bg-[#E8E3D5]/10 px-1.5 py-0.5 font-mono text-[9px] font-bold tracking-[0.08em] text-[#B5AF9D]">
 																			YOU
 																		</span>
 																	)}
@@ -2549,9 +3471,9 @@ export default function Home() {
 																	}
 																}}
 																onClick={(e) => e.stopPropagation()}
-																className={` min-w-0 flex-1 rounded-lg border border-slate-800 bg-[#090d16] px-3 py-2 text-xs outline-none ${device.online
-																	? "text-slate-50 placeholder:text-slate-600"
-																	: "cursor-not-allowed text-slate-600"
+																className={` min-w-0 flex-1 rounded-[8px] bg-[#121109] px-3 py-2 text-xs outline-none ring-1 ring-inset ring-[#E8E3D5]/10 transition focus:ring-[#C2552F]/45 ${device.online
+																	? "text-[#EDE8DA] placeholder:text-[#6E6A5D]"
+																	: "cursor-not-allowed text-[#5A574C] placeholder:text-[#4A473C]"
 																	}
   `}
 															/>
@@ -2622,10 +3544,10 @@ export default function Home() {
 																	}))
 																}}
 																className={`
-    shrink-0 rounded-lg px-3 py-2 text-xs font-medium
+    shrink-0 rounded-[8px] border px-3 py-2 text-xs font-semibold transition eb-focus
     ${device.online
-																		? "text-slate-400 hover:bg-white/10 hover:text-white"
-																		: "cursor-not-allowed text-slate-700"
+																		? "border-[#E8E3D5]/12 bg-[#232219] text-[#B5AF9D] hover:border-[#E8E3D5]/20 hover:bg-[#2B2A20] hover:text-[#EDE8DA] active:translate-y-px"
+																		: "cursor-not-allowed border-transparent bg-transparent text-[#4A473C]"
 																	}
   `}>
 																Paste
@@ -2636,7 +3558,7 @@ export default function Home() {
 
 														<div
 															className={`
-            flex flex-col gap-3 px-4 pb-4
+            flex flex-col gap-3 border-t border-[#E8E3D5]/8 px-3 sm:px-4 pt-3 pb-4
             transition-all duration-300
             ${isExpanded
 																	? "translate-y-0 opacity-100"
@@ -2682,13 +3604,15 @@ export default function Home() {
               overflow-hidden
               text-ellipsis
               whitespace-nowrap
-              rounded-lg
-              border border-slate-800
-              bg-[#090d16]
-              px-3 py-2
+              rounded-[8px]
+              border border-dashed border-[#E8E3D5]/16
+              bg-[#121109]
+              px-3 py-2.5
               text-center
               text-xs
-              ${selectedFile ? "text-slate-50" : "text-slate-500"}
+              transition
+              hover:border-[#C2552F]/45 hover:bg-[#161509]
+              ${selectedFile ? "text-[#EDE8DA]" : "text-[#7E7A6B]"}
             `}>
 																{selectedFile
 																	? selectedFile.name
@@ -2720,13 +3644,13 @@ export default function Home() {
 																		}}
 																		disabled={!selectedFile}
 																		className={`
-                  w-full rounded-lg
-                  p-2
+                  w-full rounded-[8px]
+                  p-2.5
                   text-xs font-semibold
-                  transition-all duration-200
+                  transition-all duration-200 eb-focus
                   ${selectedFile
-																				? "cursor-pointer bg-emerald-600 text-white hover:bg-emerald-500"
-																				: "cursor-not-allowed bg-slate-800 text-slate-500"
+																				? "cursor-pointer bg-[#7C8560] text-[#10130A] shadow-[inset_0_1px_0_rgba(255,255,255,0.2),inset_0_-2px_0_rgba(0,0,0,0.25)] hover:bg-[#8B9469] active:translate-y-px"
+																				: "cursor-not-allowed border border-[#E8E3D5]/8 bg-[#1A1912] text-[#5A574C]"
 																			}
                 `}>
 																		Send Selected File
@@ -2741,30 +3665,30 @@ export default function Home() {
 									{/* Room Messages */}
 									<div
 										id="RoomMessages"
-										className="flex h-1/2 flex-col rounded-3xl border border-slate-800/80 bg-[#080d16]/80 p-5 shadow-[0_10px_40px_rgba(0,0,0,0.18)]">
+										className="flex h-1/2 flex-col rounded-[16px] border border-[#E8E3D5]/12 bg-[#1A1912] p-4 sm:p-5 shadow-[inset_0_1px_0_rgba(232,227,213,0.05),0_20px_44px_-34px_rgba(0,0,0,1)]">
 										{/* Header */}
-										<div className="mb-4 flex items-center justify-between">
+										<div className="mb-4 flex items-center justify-between gap-3 border-b border-[#E8E3D5]/8 pb-3">
 											<div>
-												<h3 className="text-sm font-semibold text-slate-100">
-													Room Messages
+												<h3 className="text-sm font-semibold tracking-[-0.01em] text-[#EDE8DA]">
+													Room messages
 												</h3>
 
-												<p className="mt-1 text-[11px] text-slate-500">
+												<p className="mt-1 text-[11px] text-[#6E6A5D]">
 													Messages from devices in this room
 												</p>
 											</div>
 
-											<div className="rounded-full border border-slate-800 bg-slate-900/70 px-2.5 py-1 text-[10px] font-medium text-slate-500">
+											<div className="shrink-0 rounded-full border border-[#E8E3D5]/12 bg-[#232219] px-2.5 py-1 font-mono text-[10px] font-medium text-[#8A8576]">
 												{activeRoom?.messages.length ?? 0}{" "}
 												{(activeRoom?.messages.length ?? 0) === 1 ? "message" : "messages"}
 											</div>
 										</div>
 
 										{/* Messages */}
-										<div className="flex flex-1 flex-col gap-3 overflow-y-auto pr-1">
+										<div className="flex flex-1 flex-col gap-3 overflow-y-auto pr-1 eb-scroll">
 											{(activeRoom?.messages.length ?? 0) === 0 ? (
 												<div className="flex flex-1 flex-col items-center justify-center text-center">
-													<div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl border border-slate-800 bg-slate-900/70 text-slate-600">
+													<div className="mb-3 flex h-11 w-11 items-center justify-center rounded-[12px] border border-[#E8E3D5]/12 bg-[#232219] text-[#7E7A6B]">
 														<svg
 															viewBox="0 0 24 24"
 															className="h-5 w-5"
@@ -2779,11 +3703,11 @@ export default function Home() {
 														</svg>
 													</div>
 
-													<p className="text-xs font-medium text-slate-500">
+													<p className="text-xs font-semibold text-[#B5AF9D]">
 														No messages yet
 													</p>
 
-													<p className="mt-1 text-[11px] text-slate-700">
+													<p className="mt-1 max-w-[34ch] text-[11px] leading-relaxed text-[#6E6A5D]">
 														Messages from connected devices will appear here
 													</p>
 												</div>
@@ -2803,7 +3727,7 @@ export default function Home() {
 																		navigator.clipboard.writeText(msg.text)
 																	}}
 																	title="Copy message"
-																	className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-800/80 bg-slate-900/50 text-slate-600 opacity-0 transition-all duration-200 hover:border-slate-700 hover:bg-slate-800 hover:text-slate-300 group-hover:opacity-100">
+																	className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] border border-[#E8E3D5]/10 bg-[#232219] text-[#7E7A6B] opacity-0 transition-all duration-200 hover:border-[#E8E3D5]/20 hover:bg-[#2B2A20] hover:text-[#EDE8DA] group-hover:opacity-100 focus-visible:opacity-100 eb-focus">
 																	<svg
 																		viewBox="0 0 24 24"
 																		className="h-3.5 w-3.5"
@@ -2828,20 +3752,20 @@ export default function Home() {
 
 															{/* MESSAGE */}
 															<div
-																className={`max-w-[75%] rounded-2xl px-3.5 py-2.5 ${isYou
-																	? "rounded-br-md border border-sky-400/20 bg-sky-500/[0.10]"
-																	: "rounded-bl-md border border-slate-800 bg-[#0c121d]"
+																className={`max-w-[80%] sm:max-w-[75%] rounded-[14px] px-3.5 py-2.5 ${isYou
+																	? "rounded-br-[4px] border border-[#C2552F]/35 bg-[#C2552F]/[0.10]"
+																	: "rounded-bl-[4px] border border-[#E8E3D5]/10 bg-[#141309]"
 																	}`}>
 																{/* Sender */}
 																<div
-																	className={`mb-1 text-[10px] font-semibold ${isYou ? "text-sky-400/80" : "text-slate-500"
+																	className={`mb-1 font-mono text-[10px] font-semibold tracking-[0.06em] ${isYou ? "text-[#C2552F]" : "text-[#7E7A6B]"
 																		}`}>
 																	{isYou ? "You" : msg.senderDeviceName}
 																</div>
 
 																{/* Text */}
 																<p
-																	className={`whitespace-pre-wrap break-words text-[13px] leading-relaxed ${isYou ? "text-slate-200" : "text-slate-300"
+																	className={`whitespace-pre-wrap break-words text-[13px] leading-relaxed ${isYou ? "text-[#EDE8DA]" : "text-[#C6C0AE]"
 																		}`}>
 																	{msg.text}
 																</p>
@@ -2854,7 +3778,7 @@ export default function Home() {
 																		navigator.clipboard.writeText(msg.text)
 																	}}
 																	title="Copy message"
-																	className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-800/80 bg-slate-900/50 text-slate-600 opacity-0 transition-all duration-200 hover:border-slate-700 hover:bg-slate-800 hover:text-slate-300 group-hover:opacity-100">
+																	className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] border border-[#E8E3D5]/10 bg-[#232219] text-[#7E7A6B] opacity-0 transition-all duration-200 hover:border-[#E8E3D5]/20 hover:bg-[#2B2A20] hover:text-[#EDE8DA] group-hover:opacity-100 focus-visible:opacity-100 eb-focus">
 																	<svg
 																		viewBox="0 0 24 24"
 																		className="h-3.5 w-3.5"
@@ -2888,7 +3812,7 @@ export default function Home() {
 
 						{/* P2P Workspace (Blank as requested) */}
 						{activeTab === "p2p" && (
-							<div className="min-h-[260px] rounded-2xl border border-slate-800 bg-slate-900">
+							<div className="min-h-[260px] h-full rounded-[16px] border border-[#E8E3D5]/12 bg-[#1A1912] shadow-[inset_0_1px_0_rgba(232,227,213,0.05)]">
 								{/* Blank P2P Div Container */}
 							</div>
 						)}

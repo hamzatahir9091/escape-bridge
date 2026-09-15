@@ -70,3 +70,146 @@ p {
   -webkit-mask-image: linear-gradient(to bottom, black var(--mask-solid), transparent var(--mask-fade));
   mask-image: linear-gradient(to bottom, black var(--mask-solid), transparent var(--mask-fade));
 }
+
+
+
+
+
+
+
+
+
+/* ==========================================================================
+   Escape-Bridge — supporting CSS
+   Add this to your global stylesheet (e.g. src/index.css) or import it once
+   from your entry file. Nothing here touches layout or behaviour; it only
+   provides the four things Tailwind can't express cleanly.
+   ========================================================================== */
+
+/* Optional — the redesign is set in Inter Tight with a mono for codes/labels.
+   If you don't want the webfont, delete this line and the JSX falls back to
+   Inter / system-ui automatically. */
+/* @import url("https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&display=swap"); */
+
+/* 1. Paper/metal grain on the app shell — barely visible, kills the flat
+      "pure hex background" look. */
+.eb-grain {
+	background-image:
+		radial-gradient(
+			1200px 600px at 78% -10%,
+			rgba(194, 85, 47, 0.06),
+			transparent 60%
+		),
+		radial-gradient(
+			900px 500px at 5% 110%,
+			rgba(124, 133, 96, 0.05),
+			transparent 60%
+		),
+		repeating-linear-gradient(
+			0deg,
+			rgba(232, 227, 213, 0.014) 0px,
+			rgba(232, 227, 213, 0.014) 1px,
+			transparent 1px,
+			transparent 3px
+		);
+}
+
+/* 2. Thin, warm scrollbars for the device list + message log. */
+.eb-scroll {
+	scrollbar-width: thin;
+	scrollbar-color: rgba(232, 227, 213, 0.16) transparent;
+}
+.eb-scroll::-webkit-scrollbar {
+	width: 8px;
+	height: 8px;
+}
+.eb-scroll::-webkit-scrollbar-track {
+	background: transparent;
+}
+.eb-scroll::-webkit-scrollbar-thumb {
+	background: rgba(232, 227, 213, 0.14);
+	border-radius: 999px;
+	border: 2px solid transparent;
+	background-clip: padding-box;
+}
+.eb-scroll::-webkit-scrollbar-thumb:hover {
+	background: rgba(232, 227, 213, 0.26);
+	background-clip: padding-box;
+}
+
+/* 3. One consistent keyboard-focus ring, warm instead of browser blue. */
+.eb-focus:focus-visible {
+	outline: 2px solid rgba(194, 85, 47, 0.75);
+	outline-offset: 2px;
+}
+
+/* 4. Tactile press: buttons sink instead of scaling. Honours reduced motion. */
+.eb-tactile {
+	transition-property: background-color, border-color, color, box-shadow,
+		transform;
+	transition-duration: 160ms;
+	transition-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1);
+	will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+	.eb-tactile,
+	.eb-scroll {
+		transition: none !important;
+	}
+}
+
+/* ==========================================================================
+   5. Responsive guards
+   Added for the responsive pass. Nothing visual changes on desktop.
+   ========================================================================== */
+
+/* Kill any horizontal scroll at the document level. The app shell itself is
+   overflow-hidden, but mobile browsers can still rubber-band the page. */
+html,
+body,
+#root {
+	max-width: 100%;
+	overflow-x: hidden;
+}
+
+/* Stop iOS/Safari from inflating text in landscape. */
+html {
+	-webkit-text-size-adjust: 100%;
+}
+
+/* iOS zooms the page whenever a focused input is under 16px. The room-code
+   and message inputs are intentionally small, so opt out of the zoom instead
+   of inflating the type. */
+@supports (-webkit-touch-callout: none) {
+	@media (max-width: 767px) {
+		input,
+		select,
+		textarea {
+			font-size: 16px;
+		}
+	}
+}
+
+/* Narrower scrollbar gutters on small screens so lists don't lose width. */
+@media (max-width: 640px) {
+	.eb-scroll::-webkit-scrollbar {
+		width: 5px;
+		height: 5px;
+	}
+}
+
+/* Touch devices: no hover, so the message copy buttons are already visible
+   in the markup — make sure a stale :hover state can't hide them again. */
+@media (hover: none) {
+	.group:hover .eb-scroll {
+		scrollbar-color: rgba(232, 227, 213, 0.16) transparent;
+	}
+}
+
+/* Short landscape phones: give the shell a little breathing room by letting
+   the workspace scroll rather than compress past readability. */
+@media (max-height: 520px) and (orientation: landscape) {
+	#roomBox {
+		height: calc(100% - 4px);
+	}
+}

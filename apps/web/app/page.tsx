@@ -98,9 +98,7 @@ export default function Home() {
 	const [activeRoomCode, setActiveRoomCode] = useState<string | null>(null)
 	const [dataChannelOpen, setDataChannelOpen] = useState(false) // state for kkeping track of connection
 	const [sessionCode, setSessionCode] = useState("") // usestate for storing the code from next browser
-	const [selectedFiles, setSelectedFiles] = useState<
-		Record<string, File | null>
-	>({})
+
 	const [roomCode, setRoomCode] = useState<string>("")
 	const [displayRoomCode, setDisplayRoomCode] = useState<string>("")
 	const [roomDevices, setRoomDevices] = useState<
@@ -111,8 +109,6 @@ export default function Home() {
 			isHost: boolean
 		}[]
 	>([])
-
-
 
 	const [needsDeviceSetup, setNeedsDeviceSetup] = useState(true)
 	const [isHeroAnimationDone, setIsHeroAnimationDone] = useState(false)
@@ -146,7 +142,7 @@ export default function Home() {
 
 	const [expanded, setExpanded] = useState(false)
 
-	const [showJoinInput, setShowJoinInput] = useState(false)   // to detremine wether to show join dialog box or not 
+	const [showJoinInput, setShowJoinInput] = useState(false) // to detremine wether to show join dialog box or not
 	const [joinDialogueCode, setJoinDialogueCode] = useState<string>("")
 
 	const createRoomState = (
@@ -182,20 +178,13 @@ export default function Home() {
 		return room
 	}
 
-
-
 	const activeRoom = activeRoomCode
-		? roomsRef.current.get(activeRoomCode) ?? null
+		? (roomsRef.current.get(activeRoomCode) ?? null)
 		: null
 
 	const activeRoomDevices = activeRoom?.devices ?? []
 
-
-
-
-
-
-	const joinDialogueInputRef = useRef<HTMLInputElement>(null);
+	const joinDialogueInputRef = useRef<HTMLInputElement>(null)
 
 	useLayoutEffect(() => {
 		const info = getLocalDeviceInfo()
@@ -222,24 +211,23 @@ export default function Home() {
 		}
 	}, [])
 
-
 	// Add this useEffect inside your component to listen for the Escape key
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
 			if (e.key === "Escape") {
-				if (showJoinInput) setShowJoinInput(false);
-				if (roomCode) setRoomCode(""); // Or clear the active room code state
+				if (showJoinInput) setShowJoinInput(false)
+				if (roomCode) setRoomCode("") // Or clear the active room code state
 			}
-		};
-		window.addEventListener("keydown", handleKeyDown);
-		return () => window.removeEventListener("keydown", handleKeyDown);
-	}, [showJoinInput, roomCode]);
+		}
+		window.addEventListener("keydown", handleKeyDown)
+		return () => window.removeEventListener("keydown", handleKeyDown)
+	}, [showJoinInput, roomCode])
 
 	useEffect(() => {
 		if (showJoinInput) {
-			joinDialogueInputRef.current?.focus();
+			joinDialogueInputRef.current?.focus()
 		}
-	}, [showJoinInput]);
+	}, [showJoinInput])
 
 	// WHOLE IMPLEMENTATION IS BELOW
 
@@ -2019,19 +2007,21 @@ export default function Home() {
 						<div className="flex rounded-[14px] border border-slate-800 bg-slate-900 p-1 h-10 w-fit">
 							<button
 								onClick={() => setActiveTab("room")}
-								className={`cursor-pointer rounded-[10px] border-none px-7 py-2.5text-sm font-semibold transition-all duration-200 ease-in-out${activeTab === "room"
-									? "bg-slate-800 text-sky-400 shadow-[0_4px_12px_rgba(0,0,0,0.2)]"
-									: "bg-transparent text-slate-500 shadow-none"
-									}`}>
+								className={`cursor-pointer rounded-[10px] border-none px-7 py-2.5text-sm font-semibold transition-all duration-200 ease-in-out${
+									activeTab === "room"
+										? "bg-slate-800 text-sky-400 shadow-[0_4px_12px_rgba(0,0,0,0.2)]"
+										: "bg-transparent text-slate-500 shadow-none"
+								}`}>
 								Room
 							</button>
 
 							<button
 								onClick={() => setActiveTab("p2p")}
-								className={`cursor-pointer rounded-[10px] border-none px-7 py-2.5        text-sm font-semibold transition-all duration-200 ease-in-out        ${activeTab === "p2p"
-									? "bg-slate-800 text-sky-400 shadow-[0_4px_12px_rgba(0,0,0,0.2)]"
-									: "bg-transparent text-slate-500 shadow-none"
-									}`}>
+								className={`cursor-pointer rounded-[10px] border-none px-7 py-2.5        text-sm font-semibold transition-all duration-200 ease-in-out        ${
+									activeTab === "p2p"
+										? "bg-slate-800 text-sky-400 shadow-[0_4px_12px_rgba(0,0,0,0.2)]"
+										: "bg-transparent text-slate-500 shadow-none"
+								}`}>
 								P2P
 							</button>
 						</div>
@@ -2039,24 +2029,22 @@ export default function Home() {
 
 					{/* navbar create and join room buttons  */}
 					<div className="h-full w-full flex gap-4 justify-center items-center">
-
 						<div className="h-full w-full flex gap-4 justify-center items-center">
-
 							{/* CREATE ROOM CONTAINER */}
 							<div className="relative flex w-1/3 h-1/2 items-center justify-center">
-
 								{/* Absolute Room Code display (Fades in/out from left) */}
 								<div
-									className={`absolute right-full mr-4 h-full flex items-center rounded-[11px] bg-[#0b1f2a] border border-[#3ee8ff]/30 overflow-hidden transition-all duration-300 ease-out ${roomCode
-										? "opacity-100 translate-x-0 pointer-events-auto"
-										: "opacity-0 -translate-x-4 pointer-events-none"
-										}`}
-								>
+									className={`absolute right-full mr-4 h-full flex items-center rounded-[11px] bg-[#0b1f2a] border border-[#3ee8ff]/30 overflow-hidden transition-all duration-300 ease-out ${
+										roomCode
+											? "opacity-100 translate-x-0 pointer-events-auto"
+											: "opacity-0 -translate-x-4 pointer-events-none"
+									}`}>
 									<button
-										onClick={() => roomCode && navigator.clipboard.writeText(roomCode)}
+										onClick={() =>
+											roomCode && navigator.clipboard.writeText(roomCode)
+										}
 										className="h-full px-4 flex items-center justify-center text-[#3ee8ff] hover:bg-[#3ee8ff]/10 transition"
-										title="Copy room code"
-									>
+										title="Copy room code">
 										<svg
 											width="18"
 											height="18"
@@ -2065,8 +2053,7 @@ export default function Home() {
 											stroke="currentColor"
 											strokeWidth="2"
 											strokeLinecap="round"
-											strokeLinejoin="round"
-										>
+											strokeLinejoin="round">
 											<rect x="9" y="9" width="13" height="13" rx="2" />
 											<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
 										</svg>
@@ -2083,17 +2070,20 @@ export default function Home() {
 								<button
 									onClick={() => {
 										if (roomCode) {
-											setRoomCode(""); // Clears active state when ESC/close is clicked
+											setRoomCode("") // Clears active state when ESC/close is clicked
 										} else {
-											createRoom();
-											createRoomButtonAnimation();
+											createRoom()
+											createRoomButtonAnimation()
 										}
 									}}
-									className="flex w-full h-full items-center justify-center gap-2 rounded-[11px] bg-gradient-to-br from-[#3ee8ff] via-[#7fd8ff] to-[#4f8cff] px-5 py-[13px] text-[14px] font-semibold text-[#02141c] shadow-[0_8px_26px_-8px_rgba(62,232,255,0.55)] transition hover:shadow-[0_10px_32px_-6px_rgba(62,232,255,0.7)] active:scale-[0.98]"
-								>
+									className="flex w-full h-full items-center justify-center gap-2 rounded-[11px] bg-gradient-to-br from-[#3ee8ff] via-[#7fd8ff] to-[#4f8cff] px-5 py-[13px] text-[14px] font-semibold text-[#02141c] shadow-[0_8px_26px_-8px_rgba(62,232,255,0.55)] transition hover:shadow-[0_10px_32px_-6px_rgba(62,232,255,0.7)] active:scale-[0.98]">
 									{roomCode ? (
 										<span className="text-[13px] font-medium tracking-wide text-[#02141c]/80">
-											Press <kbd className="rounded bg-[#02141c]/15 px-1.5 py-0.5 font-mono text-[11px] font-bold text-[#02141c]">ESC</kbd> to close
+											Press{" "}
+											<kbd className="rounded bg-[#02141c]/15 px-1.5 py-0.5 font-mono text-[11px] font-bold text-[#02141c]">
+												ESC
+											</kbd>{" "}
+											to close
 										</span>
 									) : (
 										<>
@@ -2106,19 +2096,20 @@ export default function Home() {
 
 							{/* JOIN ROOM CONTAINER */}
 							<div className="relative w-1/3 h-1/2 flex flex-col items-center justify-center">
-
 								{/* Join Room Button */}
 								<button
 									ref={joinButtonRef}
 									onClick={() => {
 										setShowJoinInput((prev) => !prev)
-
 									}}
-									className="flex w-full h-full items-center justify-center gap-2 rounded-[11px] bg-gradient-to-br from-[#3ee8ff] via-[#7fd8ff] to-[#4f8cff] px-5 py-[13px] text-[14px] font-semibold text-[#02141c] shadow-[0_8px_26px_-8px_rgba(62,232,255,0.55)] transition hover:shadow-[0_10px_32px_-6px_rgba(62,232,255,0.7)] active:scale-[0.98]"
-								>
+									className="flex w-full h-full items-center justify-center gap-2 rounded-[11px] bg-gradient-to-br from-[#3ee8ff] via-[#7fd8ff] to-[#4f8cff] px-5 py-[13px] text-[14px] font-semibold text-[#02141c] shadow-[0_8px_26px_-8px_rgba(62,232,255,0.55)] transition hover:shadow-[0_10px_32px_-6px_rgba(62,232,255,0.7)] active:scale-[0.98]">
 									{showJoinInput ? (
 										<span className="text-[13px] font-medium tracking-wide text-[#02141c]/80">
-											Press <kbd className="rounded bg-[#02141c]/15 px-1.5 py-0.5 font-mono text-[11px] font-bold text-[#02141c]">ESC</kbd> to close
+											Press{" "}
+											<kbd className="rounded bg-[#02141c]/15 px-1.5 py-0.5 font-mono text-[11px] font-bold text-[#02141c]">
+												ESC
+											</kbd>{" "}
+											to close
 										</span>
 									) : (
 										<>
@@ -2130,11 +2121,11 @@ export default function Home() {
 
 								{/* Join Room Input (Fades in/out downwards) */}
 								<div
-									className={`absolute top-[115%] left-0 w-full flex items-center gap-2 rounded-[11px] border border-[#3ee8ff]/30 bg-[#0b1f2a] p-2 shadow-[0_8px_26px_-8px_rgba(62,232,255,0.3)] transition-all duration-300 ease-out z-10 ${showJoinInput
-										? "opacity-100 translate-y-0 pointer-events-auto"
-										: "opacity-0 -translate-y-2 pointer-events-none"
-										}`}
-								>
+									className={`absolute top-[115%] left-0 w-full flex items-center gap-2 rounded-[11px] border border-[#3ee8ff]/30 bg-[#0b1f2a] p-2 shadow-[0_8px_26px_-8px_rgba(62,232,255,0.3)] transition-all duration-300 ease-out z-10 ${
+										showJoinInput
+											? "opacity-100 translate-y-0 pointer-events-auto"
+											: "opacity-0 -translate-y-2 pointer-events-none"
+									}`}>
 									<input
 										ref={joinDialogueInputRef}
 										type="text"
@@ -2143,13 +2134,13 @@ export default function Home() {
 										placeholder="Enter room code"
 										value={joinDialogueCode}
 										onChange={(e) => {
-											const value = e.target.value.replace(/\D/g, "");
-											setJoinDialogueCode(value);
-											setRoomCode(value);
+											const value = e.target.value.replace(/\D/g, "")
+											setJoinDialogueCode(value)
+											setRoomCode(value)
 										}}
 										onKeyDown={(e) => {
 											if (e.key === "Enter" && joinDialogueCode.length === 6) {
-												joinRoom();
+												joinRoom()
 											}
 										}}
 										className="min-w-0 flex-1 bg-transparent px-3 py-2 text-center text-[14px] font-semibold tracking-[0.25em] text-white outline-none placeholder:tracking-normal placeholder:text-white/30"
@@ -2158,23 +2149,16 @@ export default function Home() {
 									<button
 										onClick={() => {
 											if (joinDialogueCode.length === 6) {
-												joinRoom();
+												joinRoom()
 											}
 										}}
-										className="rounded-[8px] bg-[#3ee8ff] px-4 py-2 text-[13px] font-semibold text-[#02141c] transition hover:bg-[#7fd8ff] active:scale-[0.98]"
-									>
+										className="rounded-[8px] bg-[#3ee8ff] px-4 py-2 text-[13px] font-semibold text-[#02141c] transition hover:bg-[#7fd8ff] active:scale-[0.98]">
 										Join
 									</button>
 								</div>
-
 							</div>
-
 						</div>
-
 					</div>
-
-
-
 				</div>
 
 				{/* BOTTOM SECTION */}
@@ -2185,8 +2169,6 @@ export default function Home() {
 							<div
 								id="roomWorkSpace"
 								className=" relative z-0  flex flex-col h-full justify-center items-center pointer-events-none ">
-
-
 								{needsDeviceSetup && (
 									<span
 										id="roomIntroText"
@@ -2196,7 +2178,9 @@ export default function Home() {
 									</span>
 								)}
 
-								<div id="roomBox" className="absolute bottom-0 bg-amber-50  opacity-0 w-4/5 h-5/6  border-4 rounded-4xl  shadow-2xl [mask-image:linear-gradient(to_bottom,black_50%,transparent_100%)]">
+								<div
+									id="roomBox"
+									className="absolute bottom-0 bg-amber-50  opacity-0 w-4/5 h-5/6  border-4 rounded-4xl  shadow-2xl [mask-image:linear-gradient(to_bottom,black_50%,transparent_100%)]">
 									{/* this is the create and join room card  */}
 									{needsDeviceSetup && (
 										<>
@@ -2245,8 +2229,9 @@ export default function Home() {
 																{[0, 1, 2, 3, 4, 5].map((index) => (
 																	<div
 																		key={index}
-																		className={`min-w-[54px] min-h-[64px] rounded-[10px] border border-[rgba(140,200,255,0.24)] bg-[rgba(62,232,255,0.06)] px-[14px] py-[10px] text-center font-mono text-[30px] font-semibold tracking-[0.02em] text-[#eaf2fb] [text-shadow:0_0_20px_rgba(62,232,255,0.35)] ${index === 3 ? "ml-1" : ""
-																			}`}>
+																		className={`min-w-[54px] min-h-[64px] rounded-[10px] border border-[rgba(140,200,255,0.24)] bg-[rgba(62,232,255,0.06)] px-[14px] py-[10px] text-center font-mono text-[30px] font-semibold tracking-[0.02em] text-[#eaf2fb] [text-shadow:0_0_20px_rgba(62,232,255,0.35)] ${
+																			index === 3 ? "ml-1" : ""
+																		}`}>
 																		{displayRoomCode?.[index] || ""}
 																	</div>
 																))}
@@ -2301,7 +2286,7 @@ export default function Home() {
 														<div className="mb-5 flex gap-2">
 															<CodeInput
 																onComplete={handleCodeComplete}
-															// nextFocusRef={joinButtonRef}
+																// nextFocusRef={joinButtonRef}
 															/>
 														</div>
 
@@ -2347,25 +2332,26 @@ export default function Home() {
 											Active Rooms
 										</div>
 										{Object.keys(rooms).map((code) => {
-											const isActive = activeRoomCode === code;
+											const isActive = activeRoomCode === code
 											return (
 												<button
 													key={code}
 													onClick={() => setActiveRoomCode(code)}
-													className={`relative flex items-center gap-2 rounded-[8px] px-3 py-1.5 text-xs font-mono font-semibold tracking-wider transition-all duration-200 cursor-pointer ${isActive
-														? "bg-gradient-to-r from-[#3ee8ff] to-[#7fd8ff] text-[#02141c] shadow-[0_0_12px_rgba(62,232,255,0.4)]"
-														: "bg-transparent text-slate-400 hover:bg-[#3ee8ff]/10 hover:text-[#3ee8ff]"
-														}`}
-												>
+													className={`relative flex items-center gap-2 rounded-[8px] px-3 py-1.5 text-xs font-mono font-semibold tracking-wider transition-all duration-200 cursor-pointer ${
+														isActive
+															? "bg-gradient-to-r from-[#3ee8ff] to-[#7fd8ff] text-[#02141c] shadow-[0_0_12px_rgba(62,232,255,0.4)]"
+															: "bg-transparent text-slate-400 hover:bg-[#3ee8ff]/10 hover:text-[#3ee8ff]"
+													}`}>
 													<span
-														className={`h-1.5 w-1.5 rounded-full ${isActive
-															? "bg-[#02141c] shadow-[0_0_4px_#02141c]"
-															: "bg-[#3ee8ff]/40"
-															}`}
+														className={`h-1.5 w-1.5 rounded-full ${
+															isActive
+																? "bg-[#02141c] shadow-[0_0_4px_#02141c]"
+																: "bg-[#3ee8ff]/40"
+														}`}
 													/>
 													{code}
 												</button>
-											);
+											)
 										})}
 									</div>
 
@@ -2384,8 +2370,10 @@ export default function Home() {
 											.map((device) => {
 												const isCurrentDevice =
 													device.deviceId === getDeviceID()
-												const isConnected = activeRoom?.peerStatus[device.deviceId] ?? false
-												const selectedFile = selectedFiles[device.deviceId]
+												const isConnected =
+													activeRoom?.peerStatus[device.deviceId] ?? false
+												const selectedFile =
+													activeRoom?.selectedFiles[device.deviceId] ?? null
 												const isExpanded = expandedDevice === device.deviceId
 
 												return (
@@ -2396,12 +2384,13 @@ export default function Home() {
     border bg-slate-900
     transition-all duration-300
     ${isExpanded ? "h-56" : "h-16"}
-    ${device.online
-																? isConnected
-																	? "border-sky-400/40 shadow-[0_0_15px_rgba(56,189,248,0.05)]"
-																	: "border-slate-800"
-																: "cursor-not-allowed opacity-60 border-slate-800"
-															}
+    ${
+			device.online
+				? isConnected
+					? "border-sky-400/40 shadow-[0_0_15px_rgba(56,189,248,0.05)]"
+					: "border-slate-800"
+				: "cursor-not-allowed opacity-60 border-slate-800"
+		}
   `}
 														onMouseEnter={() => {
 															if (device.online) {
@@ -2506,10 +2495,11 @@ export default function Home() {
 																	}
 																}}
 																onClick={(e) => e.stopPropagation()}
-																className={` min-w-0 flex-1 rounded-lg border border-slate-800 bg-[#090d16] px-3 py-2 text-xs outline-none ${device.online
-																	? "text-slate-50 placeholder:text-slate-600"
-																	: "cursor-not-allowed text-slate-600"
-																	}
+																className={` min-w-0 flex-1 rounded-lg border border-slate-800 bg-[#090d16] px-3 py-2 text-xs outline-none ${
+																	device.online
+																		? "text-slate-50 placeholder:text-slate-600"
+																		: "cursor-not-allowed text-slate-600"
+																}
   `}
 															/>
 
@@ -2570,10 +2560,11 @@ export default function Home() {
 																}}
 																className={`
     shrink-0 rounded-lg px-3 py-2 text-xs font-medium
-    ${device.online
-																		? "text-slate-400 hover:bg-white/10 hover:text-white"
-																		: "cursor-not-allowed text-slate-700"
-																	}
+    ${
+			device.online
+				? "text-slate-400 hover:bg-white/10 hover:text-white"
+				: "cursor-not-allowed text-slate-700"
+		}
   `}>
 																Paste
 															</button>
@@ -2585,10 +2576,11 @@ export default function Home() {
 															className={`
             flex flex-col gap-3 px-4 pb-4
             transition-all duration-300
-            ${isExpanded
-																	? "translate-y-0 opacity-100"
-																	: "pointer-events-none -translate-y-2 opacity-0"
-																}
+            ${
+							isExpanded
+								? "translate-y-0 opacity-100"
+								: "pointer-events-none -translate-y-2 opacity-0"
+						}
           `}>
 															{/* File picker */}
 
@@ -2599,9 +2591,20 @@ export default function Home() {
 																onChange={(e) => {
 																	const file = e.target.files?.[0] ?? null
 
-																	setSelectedFiles((prev) => ({
-																		...prev,
+																	if (!activeRoomCode) return
+
+																	const room =
+																		roomsRef.current.get(activeRoomCode)
+																	if (!room) return
+
+																	room.selectedFiles = {
+																		...room.selectedFiles,
 																		[device.deviceId]: file,
+																	}
+
+																	setRooms((prev) => ({
+																		...prev,
+																		[activeRoomCode]: room,
 																	}))
 
 																	// Allow selecting the same file again later
@@ -2660,10 +2663,11 @@ export default function Home() {
                   p-2
                   text-xs font-semibold
                   transition-all duration-200
-                  ${selectedFile
-																				? "cursor-pointer bg-emerald-600 text-white hover:bg-emerald-500"
-																				: "cursor-not-allowed bg-slate-800 text-slate-500"
-																			}
+                  ${
+										selectedFile
+											? "cursor-pointer bg-emerald-600 text-white hover:bg-emerald-500"
+											: "cursor-not-allowed bg-slate-800 text-slate-500"
+									}
                 `}>
 																		Send Selected File
 																	</button>
@@ -2730,8 +2734,9 @@ export default function Home() {
 													return (
 														<div
 															key={`${msg.senderDeviceId}-${msg.text}-${roomMessages.indexOf(msg)}`}
-															className={`group flex w-full items-center gap-2 ${isYou ? "justify-end" : "justify-start"
-																}`}>
+															className={`group flex w-full items-center gap-2 ${
+																isYou ? "justify-end" : "justify-start"
+															}`}>
 															{/* COPY — YOUR MESSAGE */}
 															{isYou && (
 																<button
@@ -2764,21 +2769,24 @@ export default function Home() {
 
 															{/* MESSAGE */}
 															<div
-																className={`max-w-[75%] rounded-2xl px-3.5 py-2.5 ${isYou
-																	? "rounded-br-md border border-sky-400/20 bg-sky-500/[0.10]"
-																	: "rounded-bl-md border border-slate-800 bg-[#0c121d]"
-																	}`}>
+																className={`max-w-[75%] rounded-2xl px-3.5 py-2.5 ${
+																	isYou
+																		? "rounded-br-md border border-sky-400/20 bg-sky-500/[0.10]"
+																		: "rounded-bl-md border border-slate-800 bg-[#0c121d]"
+																}`}>
 																{/* Sender */}
 																<div
-																	className={`mb-1 text-[10px] font-semibold ${isYou ? "text-sky-400/80" : "text-slate-500"
-																		}`}>
+																	className={`mb-1 text-[10px] font-semibold ${
+																		isYou ? "text-sky-400/80" : "text-slate-500"
+																	}`}>
 																	{isYou ? "You" : msg.senderDeviceName}
 																</div>
 
 																{/* Text */}
 																<p
-																	className={`whitespace-pre-wrap break-words text-[13px] leading-relaxed ${isYou ? "text-slate-200" : "text-slate-300"
-																		}`}>
+																	className={`whitespace-pre-wrap break-words text-[13px] leading-relaxed ${
+																		isYou ? "text-slate-200" : "text-slate-300"
+																	}`}>
 																	{msg.text}
 																</p>
 															</div>
@@ -2831,6 +2839,6 @@ export default function Home() {
 					</div>
 				</div>
 			</div>
-		</div >
+		</div>
 	)
 }

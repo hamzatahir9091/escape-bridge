@@ -194,6 +194,7 @@ export default function Home() {
 			return
 		}
 
+
 		setIsSettled(true)
 	}, [])
 
@@ -1658,16 +1659,20 @@ export default function Home() {
 	// // GSAP ANIMATIONS
 	useGSAP(
 		() => {
+
+			const mm = gsap.matchMedia()
+
 			if (!isSettled) {
 				return
 			}
 
-			// run this animation if we need device setup
+			// run this animation if we need device setup <-------------------NEED DEVICE SETUP
 			if (isNewUser) {
 				if (!heroRef.current || !introRef.current) return
 
 				heroTL.current = gsap.timeline({
 					paused: true,
+					onStart: () => { console.log('HEROTL STARTED', ) }
 				})
 
 				afterIntroTL.current = gsap.timeline({
@@ -1681,24 +1686,51 @@ export default function Home() {
 					// scale: 0.95
 				})
 
-				heroTL.current
-					.to(heroRef.current, {
-						scale: 0.5,
-						y: "-40vh",
-						duration: 1,
-						delay: 0.5,
-						ease: "power2.inOut",
-					})
-					.to(
-						introRef.current,
-						{
-							opacity: 1,
-							y: 0,
-							scale: 1,
-							duration: 0.5,
-						},
-						">-0.3",
-					)
+
+				mm.add("(min-width: 769px)", () => {           // <------HERO ANIMATION FOR LAPTOP
+					heroTL.current!
+						.to(heroRef.current, {
+							scale: 0.5,
+							y: "-60vh",
+							duration: 1,
+							delay: 0.5,
+							opacity: 0,
+							ease: "power2.inOut",
+						})
+						.to(
+							introRef.current,
+							{
+								opacity: 1,
+								y: 0,
+								scale: 1,
+								duration: 0.5,
+							},
+							">-0.3",
+						)
+				})
+
+
+				mm.add("(max-width: 769px)", () => {      // <------HERO ANIMATION FOR MOBILE
+					heroTL.current!
+						.to(heroRef.current, {
+							scale: 1.8,
+							// y: "-60vh",
+							duration: 0.3,
+							delay: 0.5,
+							opacity: 0,
+							ease: "power2.inOut",
+						})
+						.to(
+							introRef.current,
+							{
+								opacity: 1,
+								y: 0,
+								scale: 1,
+								duration: 0.5,
+							},
+							">",
+						)
+				})
 
 				afterIntroTL.current
 					.to(heroRef.current, {
@@ -2152,6 +2184,7 @@ export default function Home() {
 
 								{/* Create Room Button */}
 								<button
+									id="navCreateButton"
 									onClick={() => {
 										if (roomCode) {
 											setRoomCode("") // Clears active state when ESC/close is clicked
@@ -2160,7 +2193,7 @@ export default function Home() {
 											createRoomButtonAnimation()
 										}
 									}}
-									className="eb-tactile eb-focus flex w-full h-full items-center justify-center gap-2 rounded-[9px] bg-[#C2552F] px-4 text-[13px] font-semibold tracking-[-0.01em] text-[#1A0E08] shadow-[inset_0_1px_0_rgba(255,255,255,0.22),inset_0_-2px_0_rgba(0,0,0,0.28),0_6px_16px_-10px_rgba(194,85,47,0.9)] transition hover:bg-[#CE5F37] active:translate-y-px">
+									className="eb-tactile opacity-0 eb-focus flex w-full h-full items-center justify-center gap-2 rounded-[9px] bg-[#C2552F] px-4 text-[13px] font-semibold tracking-[-0.01em] text-[#1A0E08] shadow-[inset_0_1px_0_rgba(255,255,255,0.22),inset_0_-2px_0_rgba(0,0,0,0.28),0_6px_16px_-10px_rgba(194,85,47,0.9)] transition hover:bg-[#CE5F37] active:translate-y-px">
 									{roomCode ? (
 										<span className="text-[12.5px] font-medium tracking-wide text-[#1A0E08]/85">
 											Press{" "}
@@ -2182,11 +2215,12 @@ export default function Home() {
 							<div className="relative w-[46%] md:w-1/3 h-10 md:h-1/2 flex flex-col items-center justify-center">
 								{/* Join Room Button */}
 								<button
+									id="navJoinButton"
 									ref={joinButtonRef}
 									onClick={() => {
 										setShowJoinInput((prev) => !prev)
 									}}
-									className="eb-tactile eb-focus flex w-full h-full items-center justify-center gap-2 rounded-[9px] border border-[#E8E3D5]/14 bg-[#232219] px-4 text-[13px] font-semibold tracking-[-0.01em] text-[#EDE8DA] shadow-[inset_0_1px_0_rgba(232,227,213,0.07),inset_0_-2px_0_rgba(0,0,0,0.35)] transition hover:bg-[#2B2A20] active:translate-y-px">
+									className="eb-tactile opacity-0 eb-focus flex w-full h-full items-center justify-center gap-2 rounded-[9px] border border-[#E8E3D5]/14 bg-[#232219] px-4 text-[13px] font-semibold tracking-[-0.01em] text-[#EDE8DA] shadow-[inset_0_1px_0_rgba(232,227,213,0.07),inset_0_-2px_0_rgba(0,0,0,0.35)] transition hover:bg-[#2B2A20] active:translate-y-px">
 									{showJoinInput ? (
 										<span className="text-[12.5px] font-medium tracking-wide text-[#B5AF9D]">
 											Press{" "}
@@ -2263,11 +2297,11 @@ export default function Home() {
 
 								<div
 									id="roomBox"
-									className="absolute bottom-0 opacity-0 w-full sm:w-11/12 lg:w-4/5 h-5/6 flex flex-col gap-4 overflow-hidden rounded-t-[22px] border border-b-0 border-[#E8E3D5]/12 bg-[#17160F] p-3 sm:p-5 shadow-[0_-30px_80px_-40px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(232,227,213,0.06)] [mask-image:linear-gradient(to_bottom,black_50%,transparent_100%)]">
+									className="absolute bottom-0 opacity-0 w-full sm:w-11/12 lg:w-4/5 h-5/6 flex flex-col gap-4 overflow-auto rounded-t-[22px] border border-b-0 border-[#E8E3D5]/12 bg-[#17160F] p-3 sm:p-5 shadow-[0_-30px_80px_-40px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(232,227,213,0.06)] [mask-image:linear-gradient(to_bottom,black_50%,transparent_100%)]">
 									{/* this is the create and join room card  */}
 									{needsDeviceSetup && (
 										<>
-											<div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 p-1 sm:p-2">
+											<div className="grid bg-red-50 grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 p-1 sm:p-2">
 												{/* CREATE ROOM */}
 												<div
 													id="createRoomCard"
@@ -2331,9 +2365,7 @@ export default function Home() {
 																	Copy code
 																</button>
 
-																<button className="eb-tactile eb-focus flex w-auto items-center justify-center gap-2 rounded-[8px] border border-[#E8E3D5]/12 bg-[#232219] px-3.5 py-2 text-[12.5px] font-semibold text-[#EDE8DA] shadow-[inset_0_1px_0_rgba(232,227,213,0.06)] transition hover:border-[#E8E3D5]/20 hover:bg-[#2B2A20] active:translate-y-px">
-																	Share
-																</button>
+												
 															</div>
 														</div>
 													</div>
@@ -2795,9 +2827,9 @@ export default function Home() {
 									{/* Room Messages */}
 									<div
 										id="RoomMessages"
-										className="flex h-1/2 flex-col rounded-[16px] border border-[#E8E3D5]/12 bg-[#1A1912] p-4 sm:p-5 shadow-[inset_0_1px_0_rgba(232,227,213,0.05),0_20px_44px_-34px_rgba(0,0,0,1)]">
+										className="flex  opacity-0 h-1/2 flex-col rounded-[16px] border border-[#E8E3D5]/12 bg-[#1A1912] p-4 sm:p-5 shadow-[inset_0_1px_0_rgba(232,227,213,0.05),0_20px_44px_-34px_rgba(0,0,0,1)]">
 										{/* Header */}
-										<div className="mb-4 flex items-center justify-between gap-3 border-b border-[#E8E3D5]/8 pb-3">
+										<div className="mb-4  flex items-center justify-between gap-3 border-b border-[#E8E3D5]/8 pb-3">
 											<div>
 												<h3 className="text-sm font-semibold tracking-[-0.01em] text-[#EDE8DA]">
 													Room messages

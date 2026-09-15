@@ -18,7 +18,7 @@ export function handleDeviceRegister(
 ) {
   const { deviceId, deviceName } = data.payload;
 
-  // Device already exists in a room and is reconnecting
+  // stores devie in on session device storage list
   devices.set(deviceId, {
     deviceId,
     deviceName,
@@ -63,7 +63,7 @@ export function handleDeviceRegister(
       JSON.stringify({
         type: MessageType.ROOM_JOINED,
         payload: {
-          code: room.code,
+          roomCode: room.code,
           devices: roomDevices,
         },
       })

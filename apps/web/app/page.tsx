@@ -2234,7 +2234,7 @@ export default function Home() {
 									onClick={() => {
 										setShowJoinInput((prev) => !prev)
 									}}
-									className="eb-tactile opacity-0 eb-focus flex w-full h-full items-center justify-center gap-2 rounded-[9px] border border-[#E8E3D5]/14 bg-[#232219] px-4 text-[13px] font-semibold tracking-[-0.01em] text-[#EDE8DA] shadow-[inset_0_1px_0_rgba(232,227,213,0.07),inset_0_-2px_0_rgba(0,0,0,0.35)] transition hover:bg-[#2B2A20] active:translate-y-px">
+									className="eb-tactile opacity eb-focus flex w-full h-full items-center justify-center gap-2 rounded-[9px] border border-[#E8E3D5]/14 bg-[#232219] px-4 text-[13px] font-semibold tracking-[-0.01em] text-[#EDE8DA] shadow-[inset_0_1px_0_rgba(232,227,213,0.07),inset_0_-2px_0_rgba(0,0,0,0.35)] transition hover:bg-[#2B2A20] active:translate-y-px">
 									{showJoinInput ? (
 										<span className="text-[12.5px] font-medium tracking-wide text-[#B5AF9D]">
 											Press{" "}
@@ -2478,7 +2478,7 @@ export default function Home() {
 									)}
 
 									{/* Room Switcher */}
-									<div className="flex w-fit max-w-full items-center gap-1.5 overflow-x-auto rounded-[10px] border border-[#E8E3D5]/12 bg-[#1C1B14] p-1.5 shadow-[inset_0_1px_0_rgba(232,227,213,0.06)] eb-scroll">
+									<div className="flex w-fit max-w-full items-center gap-1.5  rounded-[10px] border border-[#E8E3D5]/12 bg-[#1C1B14] p-1.5 shadow-[inset_0_1px_0_rgba(232,227,213,0.06)] eb-scroll">
 										<div className="shrink-0 px-2 font-mono text-[10px] tracking-[0.12em] text-[#6E6A5D] border-r border-[#E8E3D5]/12 mr-1 select-none">
 											Active rooms
 										</div>

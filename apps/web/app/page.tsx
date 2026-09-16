@@ -100,7 +100,7 @@ export default function Home() {
 
 	const [roomCode, setRoomCode] = useState<string>("")
 	const [displayRoomCode, setDisplayRoomCode] = useState<string>("")
-
+	const [navCreatedRoomCode, setNavCreatedRoomCode] = useState<string>("")
 
 	const [needsDeviceSetup, setNeedsDeviceSetup] = useState(true)
 	const [isHeroAnimationDone, setIsHeroAnimationDone] = useState(false)
@@ -658,6 +658,7 @@ export default function Home() {
 					createRoomState(code)
 
 					setDisplayRoomCode(code)
+					setNavCreatedRoomCode(code)
 					setRoomCode(code)
 					setActiveRoomCode(code)
 					break
@@ -1672,7 +1673,7 @@ export default function Home() {
 
 				heroTL.current = gsap.timeline({
 					paused: true,
-					onStart: () => { console.log('HEROTL STARTED', ) }
+					onStart: () => { console.log('HEROTL STARTED',) }
 				})
 
 				afterIntroTL.current = gsap.timeline({
@@ -1989,29 +1990,42 @@ export default function Home() {
 	})
 
 	const createRoomButtonAnimation = () => {
-		const tl = gsap.timeline()
+		// const tl = gsap.timeline()
 
-		tl.set("#roomSelectionText-2", {
-			scale: 0.7,
+		// tl.set("#roomSelectionText-2", {
+		// 	scale: 0.7,
+		// })
+		// 	.to("#roomSelectionText-1", {
+		// 		yPercent: -100,
+		// 		opacity: 0,
+		// 		scale: 0.7,
+		// 		duration: 0.8,
+		// 		ease: "power1.out",
+		// 	})
+		// 	.to(
+		// 		"#roomSelectionText-2",
+		// 		{
+		// 			yPercent: -100,
+		// 			opacity: 1,
+		// 			scale: 1,
+		// 			duration: 0.8,
+		// 			ease: "power1.out",
+		// 		},
+		// 		"<",
+		// 	)
+
+
+
+		gsap.to("#roomIntroText-1", {
+			opacity: 0,
+			duration: 0.3,
 		})
-			.to("#roomSelectionText-1", {
-				yPercent: -100,
-				opacity: 0,
-				scale: 0.7,
-				duration: 0.8,
-				ease: "power1.out",
-			})
-			.to(
-				"#roomSelectionText-2",
-				{
-					yPercent: -100,
-					opacity: 1,
-					scale: 1,
-					duration: 0.8,
-					ease: "power1.out",
-				},
-				"<",
-			)
+
+		gsap.to("#roomIntroText-2", {
+			opacity: 1,
+			duration: 0.3,
+			delay: 0.3,
+		})
 	}
 
 	const handleStrokeComplete = () => {
@@ -2151,7 +2165,7 @@ export default function Home() {
 							<div className="relative flex w-[46%] md:w-1/3 h-10 md:h-1/2 items-center justify-center">
 								{/* Absolute Room Code display (Fades in/out from left) */}
 								<div
-									className={`absolute right-full mr-3 h-full flex items-center rounded-[9px] border border-[#E8E3D5]/12 bg-[#1A1912] overflow-hidden shadow-[0_6px_18px_-10px_rgba(0,0,0,0.9)] transition-all duration-300 ease-out ${roomCode
+									className={`absolute right-full mr-3 h-full flex items-center rounded-[9px] border border-[#E8E3D5]/12 bg-[#1A1912] overflow-hidden shadow-[0_6px_18px_-10px_rgba(0,0,0,0.9)] transition-all duration-300 ease-out ${navCreatedRoomCode
 										? "opacity-100 translate-x-0 pointer-events-auto"
 										: "opacity-0 -translate-x-4 pointer-events-none"
 										}`}>
@@ -2178,7 +2192,7 @@ export default function Home() {
 									<div className="h-3/5 w-px bg-[#E8E3D5]/12" />
 
 									<span className="px-4 font-mono text-[14px] font-semibold tracking-[0.22em] text-[#EDE8DA] whitespace-nowrap">
-										{roomCode}
+										{navCreatedRoomCode}
 									</span>
 								</div>
 
@@ -2186,15 +2200,15 @@ export default function Home() {
 								<button
 									id="navCreateButton"
 									onClick={() => {
-										if (roomCode) {
-											setRoomCode("") // Clears active state when ESC/close is clicked
+										if (navCreatedRoomCode) {
+											setNavCreatedRoomCode("") // Clears active state when ESC/close is clicked
 										} else {
 											createRoom()
 											createRoomButtonAnimation()
 										}
 									}}
-									className="eb-tactile opacity-0 eb-focus flex w-full h-full items-center justify-center gap-2 rounded-[9px] bg-[#C2552F] px-4 text-[13px] font-semibold tracking-[-0.01em] text-[#1A0E08] shadow-[inset_0_1px_0_rgba(255,255,255,0.22),inset_0_-2px_0_rgba(0,0,0,0.28),0_6px_16px_-10px_rgba(194,85,47,0.9)] transition hover:bg-[#CE5F37] active:translate-y-px">
-									{roomCode ? (
+									className="eb-tactile  eb-focus flex w-full h-full items-center justify-center gap-2 rounded-[9px] bg-[#C2552F] px-4 text-[13px] font-semibold tracking-[-0.01em] text-[#1A0E08] shadow-[inset_0_1px_0_rgba(255,255,255,0.22),inset_0_-2px_0_rgba(0,0,0,0.28),0_6px_16px_-10px_rgba(194,85,47,0.9)] transition hover:bg-[#CE5F37] active:translate-y-px">
+									{navCreatedRoomCode ? (
 										<span className="text-[12.5px] font-medium tracking-wide text-[#1A0E08]/85">
 											Press{" "}
 											<kbd className="rounded bg-[#1A0E08]/15 px-1.5 py-0.5 font-mono text-[11px] font-bold text-[#1A0E08]">
@@ -2286,22 +2300,45 @@ export default function Home() {
 							<div
 								id="roomWorkSpace"
 								className="relative z-0 flex flex-col h-full justify-center items-center pointer-events-none">
+
 								{needsDeviceSetup && (
-									<span
+
+									<div
 										id="roomIntroText"
-										className="absolute inset-0 opacity-0 h-1/6 flex justify-center items-center px-6 text-center text-[#B5AF9D] text-xl sm:text-2xl lg:text-3xl leading-snug tracking-[-0.02em]">
-										If u want one time setup and seemeless connectivity , u are
-										at right place{" "}
-									</span>
+										className="absolute inset-0 opacity-0 h-1/6"
+									>
+
+										{/* BEFORE CREATE */}
+										<span
+											id="roomIntroText-1"
+											className="absolute inset-0 flex justify-center items-center px-6 text-center text-[#B5AF9D] text-xl sm:text-2xl lg:text-3xl leading-snug tracking-[-0.02em]"
+										>
+											Create a room or enter a code created by another device.
+										</span>
+
+										{/* AFTER CREATE */}
+										<span
+											id="roomIntroText-2"
+											className="absolute inset-0 opacity-0 flex justify-center items-center px-6 text-center text-[#B5AF9D] text-xl sm:text-2xl lg:text-3xl leading-snug tracking-[-0.02em]"
+										>
+											Congrats!! U just created a room.
+											<br />
+											Now enter this code on the other device to join it.
+										</span>
+
+									</div>
+
 								)}
+
+
 
 								<div
 									id="roomBox"
-									className="absolute bottom-0 opacity-0 w-full sm:w-11/12 lg:w-4/5 h-5/6 flex flex-col gap-4 overflow-auto rounded-t-[22px] border border-b-0 border-[#E8E3D5]/12 bg-[#17160F] p-3 sm:p-5 shadow-[0_-30px_80px_-40px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(232,227,213,0.06)] [mask-image:linear-gradient(to_bottom,black_50%,transparent_100%)]">
+									className="absolute bottom-0 opacity-0 w-full sm:w-11/12 lg:w-4/5 h-5/6 flex flex-col gap-4 md:overflow-hidden rounded-t-[22px] border border-b-0 border-[#E8E3D5]/12 bg-[#17160F] p-3 sm:p-5 shadow-[0_-30px_80px_-40px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(232,227,213,0.06)] [mask-image:linear-gradient(to_bottom,black_50%,transparent_100%)]">
 									{/* this is the create and join room card  */}
 									{needsDeviceSetup && (
 										<>
-											<div className="grid bg-red-50 grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 p-1 sm:p-2">
+											<div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 p-1 sm:p-2">
 												{/* CREATE ROOM */}
 												<div
 													id="createRoomCard"
@@ -2365,7 +2402,7 @@ export default function Home() {
 																	Copy code
 																</button>
 
-												
+
 															</div>
 														</div>
 													</div>
@@ -2421,7 +2458,7 @@ export default function Home() {
 													</div>
 												</div>
 											</div>
-
+											{/* 
 											<div id="roomCardText" className="mt-16">
 												<span
 													id="roomSelectionText-1"
@@ -2436,7 +2473,7 @@ export default function Home() {
 													Now paste the code on other device and witness the
 													happening
 												</span>
-											</div>
+											</div> */}
 										</>
 									)}
 

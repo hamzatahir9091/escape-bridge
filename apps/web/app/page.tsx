@@ -1987,6 +1987,15 @@ export default function Home() {
 				},
 				">",
 			)
+			.to(
+				"#navButtons",
+				{
+					opacity: 1,
+					duration: 0.5,
+					pointerEvents:"auto"
+				},
+				">",
+			)
 	})
 
 	const createRoomButtonAnimation = () => {
@@ -2159,7 +2168,7 @@ export default function Home() {
 					</div>
 
 					{/* navbar create and join room buttons  */}
-					<div className="col-span-3 md:col-span-1 h-full w-full flex gap-4 justify-center items-center">
+					<div id="navButtons" className="col-span-3 md:col-span-1 h-full w-full flex gap-4 justify-center items-center opacity-0 pointer-events-none">
 						<div className="h-full w-full flex gap-3 sm:gap-4 justify-center items-center px-3 md:px-0">
 							{/* CREATE ROOM CONTAINER */}
 							<div className="relative flex w-[46%] md:w-1/3 h-10 md:h-1/2 items-center justify-center">
@@ -2478,7 +2487,7 @@ export default function Home() {
 									)}
 
 									{/* Room Switcher */}
-									<div className="flex w-fit max-w-full items-center gap-1.5  rounded-[10px] border border-[#E8E3D5]/12 bg-[#1C1B14] p-1.5 shadow-[inset_0_1px_0_rgba(232,227,213,0.06)] eb-scroll">
+									<div id="roomSwitcher" className="flex opacity-0 w-fit max-w-full items-center gap-1.5 rounded-[10px] border border-[#E8E3D5]/12 bg-[#1C1B14] p-1.5 shadow-[inset_0_1px_0_rgba(232,227,213,0.06)] eb-scroll">
 										<div className="shrink-0 px-2 font-mono text-[10px] tracking-[0.12em] text-[#6E6A5D] border-r border-[#E8E3D5]/12 mr-1 select-none">
 											Active rooms
 										</div>

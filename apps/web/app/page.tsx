@@ -224,15 +224,15 @@ export default function Home() {
 			joinDialogueInputRef.current?.focus()
 		}
 	}, [showJoinInput])
-useEffect(() => {
-    const container = messagesContainerRef.current
+	useEffect(() => {
+		const container = messagesContainerRef.current
 
-    if (!container) return
+		if (!container) return
 
-    requestAnimationFrame(() => {
-        container.scrollTop = container.scrollHeight
-    })
-}, [activeRoom?.messages.length])
+		requestAnimationFrame(() => {
+			container.scrollTop = container.scrollHeight
+		})
+	}, [activeRoom?.messages.length])
 
 
 	// WHOLE IMPLEMENTATION IS BELOW
@@ -2001,6 +2001,15 @@ useEffect(() => {
 			)
 			.to(
 				"#navButtons",
+				{
+					opacity: 1,
+					duration: 0.5,
+					pointerEvents: "auto"
+				},
+				">",
+			)
+			.to(
+				"#roomSwitcher",
 				{
 					opacity: 1,
 					duration: 0.5,

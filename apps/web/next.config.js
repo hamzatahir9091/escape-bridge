@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {};
+const nextConfig = {
+	transpilePackages: ["@bridge/shared"],
+}
 
-export default nextConfig;
+export default nextConfig

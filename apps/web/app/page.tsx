@@ -88,6 +88,8 @@ export default function Home() {
 		return roomsRef.current.get(roomCode)
 	}
 
+	const messagesContainerRef = useRef<HTMLDivElement>(null)
+
 	const [connected, setConnected] = useState(false)
 	const [message, setMessage] = useState("") // state for current message
 
@@ -222,6 +224,16 @@ export default function Home() {
 			joinDialogueInputRef.current?.focus()
 		}
 	}, [showJoinInput])
+useEffect(() => {
+    const container = messagesContainerRef.current
+
+    if (!container) return
+
+    requestAnimationFrame(() => {
+        container.scrollTop = container.scrollHeight
+    })
+}, [activeRoom?.messages.length])
+
 
 	// WHOLE IMPLEMENTATION IS BELOW
 
@@ -1992,7 +2004,7 @@ export default function Home() {
 				{
 					opacity: 1,
 					duration: 0.5,
-					pointerEvents:"auto"
+					pointerEvents: "auto"
 				},
 				">",
 			)
@@ -2893,7 +2905,7 @@ export default function Home() {
 										</div>
 
 										{/* Messages */}
-										<div className="flex flex-1 flex-col gap-3 overflow-y-auto pr-1 eb-scroll">
+										<div ref={messagesContainerRef} className="flex flex-1 flex-col gap-3 overflow-y-auto pr-1 eb-scroll">
 											{(activeRoom?.messages.length ?? 0) === 0 ? (
 												<div className="flex flex-1 flex-col items-center justify-center text-center">
 													<div className="mb-3 flex h-11 w-11 items-center justify-center rounded-[12px] border border-[#E8E3D5]/12 bg-[#232219] text-[#7E7A6B]">

@@ -103,6 +103,7 @@ export default function Home() {
 	const [roomCode, setRoomCode] = useState<string>("")
 	const [displayRoomCode, setDisplayRoomCode] = useState<string>("")
 	const [navCreatedRoomCode, setNavCreatedRoomCode] = useState<string>("")
+	const [navCreateButtonClicked, setNavCreateButtonClicked] = useState<boolean>(false)
 
 	const [needsDeviceSetup, setNeedsDeviceSetup] = useState(true)
 	const [isHeroAnimationDone, setIsHeroAnimationDone] = useState(false)
@@ -212,12 +213,12 @@ export default function Home() {
 		const handleKeyDown = (e: KeyboardEvent) => {
 			if (e.key === "Escape") {
 				if (showJoinInput) setShowJoinInput(false)
-				if (roomCode) setRoomCode("") // Or clear the active room code state
+				if (navCreateButtonClicked) setNavCreateButtonClicked(false) // Or clear the active room code state
 			}
 		}
 		window.addEventListener("keydown", handleKeyDown)
 		return () => window.removeEventListener("keydown", handleKeyDown)
-	}, [showJoinInput, roomCode])
+	}, [showJoinInput, navCreateButtonClicked])
 
 	useEffect(() => {
 		if (showJoinInput) {
@@ -1814,16 +1815,7 @@ export default function Home() {
 						},
 						">",
 					)
-					.to(
-						"#roomSelectionText-1",
-						{
-							opacity: 1,
-							// y: 0,
-							// scale: 1,
-							duration: 0.5,
-						},
-						">",
-					)
+
 			}
 
 			// run tis animation when we do not need device setup
@@ -1888,16 +1880,7 @@ export default function Home() {
 					.set("#roomWorkSpace", {
 						pointerEvents: "auto",
 					})
-					.to(
-						"#roomSelectionText-1",
-						{
-							opacity: 1,
-							// y: 0,
-							// scale: 1,
-							duration: 0.5,
-						},
-						">",
-					)
+
 
 				if (!heroRef.current) return
 
@@ -1964,14 +1947,6 @@ export default function Home() {
 				"<",
 			)
 			.to(
-				"#roomCardText",
-				{
-					opacity: 0,
-					duration: 0.5,
-				},
-				"<",
-			)
-			.to(
 				"#joinRoomCard",
 				{
 					opacity: 0,
@@ -2020,32 +1995,6 @@ export default function Home() {
 	})
 
 	const createRoomButtonAnimation = () => {
-		// const tl = gsap.timeline()
-
-		// tl.set("#roomSelectionText-2", {
-		// 	scale: 0.7,
-		// })
-		// 	.to("#roomSelectionText-1", {
-		// 		yPercent: -100,
-		// 		opacity: 0,
-		// 		scale: 0.7,
-		// 		duration: 0.8,
-		// 		ease: "power1.out",
-		// 	})
-		// 	.to(
-		// 		"#roomSelectionText-2",
-		// 		{
-		// 			yPercent: -100,
-		// 			opacity: 1,
-		// 			scale: 1,
-		// 			duration: 0.8,
-		// 			ease: "power1.out",
-		// 		},
-		// 		"<",
-		// 	)
-
-
-
 		gsap.to("#roomIntroText-1", {
 			opacity: 0,
 			duration: 0.3,
@@ -2195,13 +2144,15 @@ export default function Home() {
 							<div className="relative flex w-[46%] md:w-1/3 h-10 md:h-1/2 items-center justify-center">
 								{/* Absolute Room Code display (Fades in/out from left) */}
 								<div
-									className={`absolute right-full mr-3 h-full flex items-center rounded-[9px] border border-[#E8E3D5]/12 bg-[#1A1912] overflow-hidden shadow-[0_6px_18px_-10px_rgba(0,0,0,0.9)] transition-all duration-300 ease-out ${navCreatedRoomCode
-										? "opacity-100 translate-x-0 pointer-events-auto"
-										: "opacity-0 -translate-x-4 pointer-events-none"
+									className={`absolute right-full mr-3 h-full flex items-center rounded-[9px] border border-[#E8E3D5]/12 bg-[#1A1912] overflow-hidden shadow-[0_6px_18px_-10px_rgba(0,0,0,0.9)] transition-all duration-300 ease-out 
+										${navCreateButtonClicked && navCreatedRoomCode
+											? "opacity-100 translate-x-0 pointer-events-auto"
+											: "opacity-0 -translate-x-4 pointer-events-none"
 										}`}>
+									{/* copy button */}
 									<button
 										onClick={() =>
-											roomCode && navigator.clipboard.writeText(roomCode)
+											navCreatedRoomCode && navigator.clipboard.writeText(navCreatedRoomCode)
 										}
 										className="h-full px-3.5 flex items-center justify-center text-[#8A8576] transition-colors hover:bg-[#E8E3D5]/[0.06] hover:text-[#C2552F] eb-focus"
 										title="Copy room code">
@@ -2230,15 +2181,15 @@ export default function Home() {
 								<button
 									id="navCreateButton"
 									onClick={() => {
+										setNavCreateButtonClicked(!navCreateButtonClicked)
 										if (navCreatedRoomCode) {
 											setNavCreatedRoomCode("") // Clears active state when ESC/close is clicked
 										} else {
 											createRoom()
-											createRoomButtonAnimation()
 										}
 									}}
 									className="eb-tactile  eb-focus flex w-full h-full items-center justify-center gap-2 rounded-[9px] bg-[#C2552F] px-4 text-[13px] font-semibold tracking-[-0.01em] text-[#1A0E08] shadow-[inset_0_1px_0_rgba(255,255,255,0.22),inset_0_-2px_0_rgba(0,0,0,0.28),0_6px_16px_-10px_rgba(194,85,47,0.9)] transition hover:bg-[#CE5F37] active:translate-y-px">
-									{navCreatedRoomCode ? (
+									{navCreateButtonClicked ? (
 										<span className="text-[12.5px] font-medium tracking-wide text-[#1A0E08]/85">
 											Press{" "}
 											<kbd className="rounded bg-[#1A0E08]/15 px-1.5 py-0.5 font-mono text-[11px] font-bold text-[#1A0E08]">
@@ -2283,7 +2234,8 @@ export default function Home() {
 
 								{/* Join Room Input (Fades in/out downwards) */}
 								<div
-									className={`absolute top-[115%] left-0 w-full flex items-center gap-2 rounded-[10px] border border-[#E8E3D5]/12 bg-[#1A1912] p-2 shadow-[0_18px_40px_-20px_rgba(0,0,0,0.95)] transition-all duration-300 ease-out z-10 ${showJoinInput
+									className={`absolute top-[115%] left-0 w-full flex items-center gap-2 rounded-[10px] border border-[#E8E3D5]/12 bg-[#1A1912] p-2 shadow-[0_18px_40px_-20px_rgba(0,0,0,0.95)] transition-all duration-300 ease-out z-10 
+										${showJoinInput
 										? "opacity-100 translate-y-0 pointer-events-auto"
 										: "opacity-0 -translate-y-2 pointer-events-none"
 										}`}>

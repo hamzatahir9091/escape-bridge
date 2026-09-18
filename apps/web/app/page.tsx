@@ -1480,7 +1480,7 @@ export default function Home() {
 				roomCode,
 				messageId,
 				100,
-				`📤 ${file.name} sent in ${seconds}s`,
+				`📤 ${file.name} (${file.size}) sent in ${seconds}s`,
 			)
 
 			console.log(`✅ File sent → ${deviceId} in ${seconds}s`)

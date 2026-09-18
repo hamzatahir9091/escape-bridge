@@ -106,11 +106,12 @@ export async function sendFile(
   channel: RTCDataChannel,
   file: File,
   options?: {
+    messageId?: string
     onProgress?: (
       sentBytes: number,
-      totalBytes: number
-    ) => void;
-  }
+      totalBytes: number,
+    ) => void
+  },
 ) {
   // checking if  data channel is open or not 
   if (channel.readyState !== "open") {
@@ -128,6 +129,7 @@ export async function sendFile(
       type: MessageType.FILE_START,
       payload: {
         transferId,
+        messageId: options?.messageId,
         name: file.name,
         size: file.size,
         mimeType: file.type,
@@ -189,6 +191,8 @@ export async function sendFile(
       type: MessageType.FILE_END,
       payload: {
         transferId,
+        messageId: options?.messageId,
+
       },
     })
   );

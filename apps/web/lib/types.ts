@@ -12,6 +12,11 @@ export type RoomMessage = {
   senderDeviceName: string;
   text: string;
   direction: "sent" | "received";
+
+  // File transfer fields
+  fileTransfer?: boolean
+  fileName?: string
+  progress?: number
 };
 
 export type RoomDevice = {
@@ -37,6 +42,7 @@ export type RoomState = {
 
 export type IncomingFileTransfer = {
   transferId: string;
+  messageId: string
   data: ArrayBuffer[];
   name: string;
   size: number;

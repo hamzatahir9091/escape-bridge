@@ -313,6 +313,8 @@ export default function Home() {
 
 										incomingFiles.current.set(peerId.current!, {
 											transferId,
+											messageId:
+												data.payload.messageId ?? crypto.randomUUID(),
 											data: [],
 											name: data.payload.name,
 											size: data.payload.size,
@@ -475,6 +477,8 @@ export default function Home() {
 									if (data.type === "FILE_START") {
 										incomingFiles.current.set(data.payload.transferId, {
 											transferId: data.payload.transferId,
+											messageId:
+												data.payload.messageId ?? crypto.randomUUID(),
 											data: [],
 											name: data.payload.name,
 											size: data.payload.size,
@@ -1317,6 +1321,93 @@ export default function Home() {
 		room.peerTimers.set(deviceId, timer)
 	}
 
+	const updateRoomFileMessage = (
+		roomCode: string,
+		messageId: string,
+		progress: number,
+		text?: string,
+	) => {
+		const room = roomsRef.current.get(roomCode)
+
+		if (!room) {
+			return
+		}
+
+		room.messages = room.messages.map((msg) =>
+			msg.id === messageId
+				? {
+					...msg,
+					progress,
+					...(text !== undefined ? { text } : {}),
+				}
+				: msg,
+		)
+
+		setRooms((prev) => ({
+			...prev,
+			[roomCode]: room,
+		}))
+	}
+
+	// const sendFileToRoomDevice = async (
+	// 	roomCode: string,
+	// 	deviceId: string,
+	// 	file: File,
+	// ) => {
+	// 	resetRoomPeerTimer(roomCode, deviceId)
+
+	// 	const room = roomsRef.current.get(roomCode)
+
+	// 	if (!room) {
+	// 		return
+	// 	}
+
+	// 	const channel = room.dataChannels.get(deviceId)
+
+	// 	if (!channel) {
+	// 		return
+	// 	}
+
+	// 	if (channel.readyState !== "open") {
+	// 		return
+	// 	}
+
+	// 	try {
+	// 		const startTime = performance.now()
+
+	// 		await sendFile(channel, file, {
+	// 			onProgress: (sentBytes, totalBytes) => {
+	// 				const percentage = Math.round((sentBytes / totalBytes) * 100)
+
+	// 				console.log(`📤 ${deviceId}: ${percentage}%`)
+	// 			},
+	// 		})
+
+	// 		const endTime = performance.now()
+	// 		const seconds = ((endTime - startTime) / 1000).toFixed(2)
+
+	// 		room.messages = [
+	// 			...room.messages,
+	// 			{
+	// 				id: crypto.randomUUID(),
+	// 				senderDeviceId: getDeviceID(),
+	// 				senderDeviceName: myDeviceName ?? "Unknown device",
+	// 				text: `📤 ${file.name} sent in ${seconds}s`,
+	// 				direction: "sent",
+	// 			},
+	// 		]
+
+	// 		setRooms((prev) => ({
+	// 			...prev,
+	// 			[roomCode]: room,
+	// 		}))
+
+	// 		console.log(`✅ File sent → ${deviceId} in ${seconds}s`)
+	// 	} catch (error) {
+	// 		console.error("❌ Room file transfer failed:", error)
+	// 	}
+	// }
+
 	const sendFileToRoomDevice = async (
 		roomCode: string,
 		deviceId: string,
@@ -1340,39 +1431,68 @@ export default function Home() {
 			return
 		}
 
+		const messageId = crypto.randomUUID()
+
+		// Add progress message immediately
+		room.messages = [
+			...room.messages,
+			{
+				id: messageId,
+				senderDeviceId: getDeviceID(),
+				senderDeviceName: myDeviceName ?? "Unknown device",
+				text: `📤 Sending ${file.name}`,
+				direction: "sent",
+				fileTransfer: true,
+				fileName: file.name,
+				progress: 0,
+			},
+		]
+
+		setRooms((prev) => ({
+			...prev,
+			[roomCode]: room,
+		}))
+
 		try {
 			const startTime = performance.now()
 
 			await sendFile(channel, file, {
-				onProgress: (sentBytes, totalBytes) => {
-					const percentage = Math.round((sentBytes / totalBytes) * 100)
+				messageId,
 
-					console.log(`📤 ${deviceId}: ${percentage}%`)
+				onProgress: (sentBytes, totalBytes) => {
+					const percentage = Math.round(
+						(sentBytes / totalBytes) * 100,
+					)
+
+					updateRoomFileMessage(
+						roomCode,
+						messageId,
+						percentage,
+						`📤 Sending ${file.name}`,
+					)
 				},
 			})
 
 			const endTime = performance.now()
 			const seconds = ((endTime - startTime) / 1000).toFixed(2)
 
-			room.messages = [
-				...room.messages,
-				{
-					id: crypto.randomUUID(),
-					senderDeviceId: getDeviceID(),
-					senderDeviceName: myDeviceName ?? "Unknown device",
-					text: `📤 ${file.name} sent in ${seconds}s`,
-					direction: "sent",
-				},
-			]
-
-			setRooms((prev) => ({
-				...prev,
-				[roomCode]: room,
-			}))
+			updateRoomFileMessage(
+				roomCode,
+				messageId,
+				100,
+				`📤 ${file.name} sent in ${seconds}s`,
+			)
 
 			console.log(`✅ File sent → ${deviceId} in ${seconds}s`)
 		} catch (error) {
 			console.error("❌ Room file transfer failed:", error)
+
+			updateRoomFileMessage(
+				roomCode,
+				messageId,
+				0,
+				`❌ Failed to send ${file.name}`,
+			)
 		}
 	}
 
@@ -1495,11 +1615,14 @@ export default function Home() {
 			// FILE START
 			// -------------------------
 
+
 			if (data.type === "FILE_START") {
 				const transferId = data.payload.transferId
 
 				roomTransfers.set(senderDeviceId, {
 					transferId,
+					messageId:
+						data.payload.messageId ?? crypto.randomUUID(),
 					data: [],
 					name: data.payload.name,
 					size: data.payload.size,
@@ -1509,6 +1632,34 @@ export default function Home() {
 					receivedChunks: 0,
 					startTime: performance.now(),
 				})
+
+				// Create the receiving message
+				const messageId =
+					data.payload.messageId ?? crypto.randomUUID()
+
+				room.messages = [
+					...room.messages,
+					{
+						id: messageId,
+						senderDeviceId,
+						senderDeviceName:
+							data.payload.senderDeviceName ??
+							room.devices.find(
+								(device) => device.deviceId === senderDeviceId,
+							)?.deviceName ??
+							"Unknown device",
+						text: `📥 Receiving ${data.payload.name}`,
+						direction: "received",
+						fileTransfer: true,
+						fileName: data.payload.name,
+						progress: 0,
+					},
+				]
+
+				setRooms((prev) => ({
+					...prev,
+					[roomCode]: room,
+				}))
 
 				console.log(`📥 Receiving ${data.payload.name} from ${senderDeviceId}`)
 
@@ -1562,19 +1713,12 @@ export default function Home() {
 
 				console.log(`✅ Received ${transfer.name} in ${seconds}s`)
 
-				room.messages = [
-					...room.messages,
-					{
-						id: data.payload.messageId ?? crypto.randomUUID(),
-						senderDeviceId,
-						senderDeviceName:
-							room.devices.find(
-								(device) => device.deviceId === senderDeviceId,
-							)?.deviceName ?? "Unknown device",
-						text: `📥 ${transfer.name} received in ${seconds}s`,
-						direction: "received",
-					},
-				]
+				updateRoomFileMessage(
+					roomCode,
+					transfer.messageId,
+					100,
+					`📥 ${transfer.name} received in ${seconds}s`,
+				)
 
 				setRooms((prev) => ({
 					...prev,
@@ -1630,11 +1774,23 @@ export default function Home() {
 				return
 			}
 
+
 			transfer.data.push(event.data)
 			transfer.receivedChunks++
 
+			const percentage = Math.round(
+				(transfer.receivedChunks / transfer.totalChunks) * 100,
+			)
+
+			updateRoomFileMessage(
+				roomCode,
+				transfer.messageId,
+				percentage,
+				`📥 Receiving ${transfer.name}`,
+			)
+
 			console.log(
-				`📥 ${senderDeviceId}: Chunk ${transfer.receivedChunks}/${transfer.totalChunks}`,
+				`📥 ${senderDeviceId}: ${percentage}%`,
 			)
 		}
 	}
@@ -2236,8 +2392,8 @@ export default function Home() {
 								<div
 									className={`absolute top-[115%] left-0 w-full flex items-center gap-2 rounded-[10px] border border-[#E8E3D5]/12 bg-[#1A1912] p-2 shadow-[0_18px_40px_-20px_rgba(0,0,0,0.95)] transition-all duration-300 ease-out z-10 
 										${showJoinInput
-										? "opacity-100 translate-y-0 pointer-events-auto"
-										: "opacity-0 -translate-y-2 pointer-events-none"
+											? "opacity-100 translate-y-0 pointer-events-auto"
+											: "opacity-0 -translate-y-2 pointer-events-none"
 										}`}>
 									<input
 										ref={joinDialogueInputRef}
@@ -2945,11 +3101,38 @@ export default function Home() {
 																</div>
 
 																{/* Text */}
-																<p
+																<div
 																	className={`whitespace-pre-wrap break-words text-[13px] leading-relaxed ${isYou ? "text-[#EDE8DA]" : "text-[#C6C0AE]"
 																		}`}>
-																	{msg.text}
-																</p>
+																	<div className="flex flex-col gap-2">
+																		<div>{msg.text}</div>
+
+																		{msg.fileTransfer && msg.progress !== undefined && (
+																			<div className="w-full min-w-[180px]">
+																				<div className="mb-1 flex items-center justify-between text-[10px] text-[#7E7A6B]">
+																					<span>
+																						{msg.progress < 100
+																							? "Transferring..."
+																							: "Complete"}
+																					</span>
+
+																					<span className="font-mono">
+																						{msg.progress}%
+																					</span>
+																				</div>
+
+																				<div className="h-1.5 w-full overflow-hidden rounded-full bg-[#121109]">
+																					<div
+																						className="h-full rounded-full bg-[#C2552F] transition-[width] duration-150 ease-out"
+																						style={{
+																							width: `${msg.progress}%`,
+																						}}
+																					/>
+																				</div>
+																			</div>
+																		)}
+																	</div>
+																</div>
 															</div>
 
 															{/* COPY — INCOMING MESSAGE */}

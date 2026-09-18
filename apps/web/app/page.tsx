@@ -1408,6 +1408,23 @@ export default function Home() {
 	// 	}
 	// }
 
+
+	function formatFileSize(bytes: number) {
+		if (bytes < 1024) {
+			return `${bytes} B`;
+		}
+
+		if (bytes < 1024 ** 2) {
+			return `${(bytes / 1024).toFixed(2)} KB`;
+		}
+
+		if (bytes < 1024 ** 3) {
+			return `${(bytes / 1024 ** 2).toFixed(2)} MB`;
+		}
+
+		return `${(bytes / 1024 ** 3).toFixed(2)} GB`;
+	}
+
 	const sendFileToRoomDevice = async (
 		roomCode: string,
 		deviceId: string,
@@ -1480,8 +1497,8 @@ export default function Home() {
 				roomCode,
 				messageId,
 				100,
-				`📤 ${file.name} (${file.size}) sent in ${seconds}s`,
-			)
+				`📤 ${file.name}  sent in ${seconds}s \n Size: (${formatFileSize(file.size)})`,
+			);
 
 			console.log(`✅ File sent → ${deviceId} in ${seconds}s`)
 		} catch (error) {
